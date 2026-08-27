@@ -1,4 +1,10 @@
 venv/
 __pycache__/
 *.pyc
+<<<<<<< HEAD
 .env
+=======
+*.pt
+data/*.mp4
+.DS_Store
+>>>>>>> cc56ac004fcf3e59ed5d077ee46def24193141b5
