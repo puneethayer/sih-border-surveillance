@@ -1,9 +1,12 @@
+import detector
 from ultralytics import YOLO
 import cv2
 import os
 import csv
 from datetime import datetime
 import numpy as np
+from database.db import init_db, log_event
+from detector import Detector
 
 # ============================================================
 # CONFIGURATION
@@ -24,21 +27,21 @@ LOG_FILE = os.path.join(LOG_DIR, "intrusion_log.csv")
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
-# ============================================================
-# CREATE CSV LOG
-# ============================================================
+# # ============================================================
+# # CREATE CSV LOG
+# # ============================================================
 
-if not os.path.exists(LOG_FILE):
-    with open(LOG_FILE, "w", newline="") as file:
-        writer = csv.writer(file)
+# if not os.path.exists(LOG_FILE):
+#     with open(LOG_FILE, "w", newline="") as file:
+#         writer = csv.writer(file)
 
-        writer.writerow([
-            "Date",
-            "Time",
-            "Person ID",
-            "Event",
-            "Snapshot"
-        ])
+#         writer.writerow([
+#             "Date",
+#             "Time",
+#             "Person ID",
+#             "Event",
+#             "Snapshot"
+#         ])
 
 # ============================================================
 # LOAD YOLO
@@ -46,7 +49,8 @@ if not os.path.exists(LOG_FILE):
 
 print("Loading YOLO model...")
 
-model = YOLO(MODEL_PATH)
+detector = Detector(model_path="yolov8n.pt")
+init_db()
 
 print("YOLO model loaded successfully!")
 
@@ -272,16 +276,7 @@ while True:
     # YOLO TRACKING
     # --------------------------------------------------------
 
-    results = model.track(
-        frame,
-        persist=True,
-        device=0,
-        classes=[0],
-        tracker="bytetrack.yaml",
-        verbose=False
-    )
-
-    boxes = results[0].boxes
+    detections = detector.detect_and_track(frame)
 
     current_intrusions = set()
 
@@ -342,85 +337,23 @@ while True:
     # --------------------------------------------------------
     # PROCESS PEOPLE
     # --------------------------------------------------------
+    for d in detections:
+        x1, y1, x2, y2 = d['bbox']
+        center_x, center_y = d['centroid']
+        track_id = d['id']
 
-    if boxes.id is not None:
+        point_inside = cv2.pointPolygonTest(np.array(polygon_points, np.int32), (center_x, center_y), False)
+        inside_zone = point_inside >= 0
 
-        coordinates = boxes.xyxy.cpu().numpy()
-
-        track_ids = boxes.id.cpu().numpy().astype(int)
-
-        for box, track_id in zip(
-            coordinates,
-            track_ids
-        ):
-
-            x1, y1, x2, y2 = map(int, box)
-
-            # Person center
-            center_x = (x1 + x2) // 2
-            center_y = (y1 + y2) // 2
-
-            # ------------------------------------------------
-            # POLYGON CHECK
-            # ------------------------------------------------
-
-            point_inside = cv2.pointPolygonTest(
-                np.array(polygon_points, np.int32),
-                (center_x, center_y),
-                False
-            )
-
-            inside_zone = point_inside >= 0
-
-            # ------------------------------------------------
-            # INTRUDER
-            # ------------------------------------------------
-
-            if inside_zone:
-
-                current_intrusions.add(track_id)
-
-                cv2.rectangle(
-                    frame,
-                    (x1, y1),
-                    (x2, y2),
-                    (0, 0, 255),
-                    3
-                )
-
-                cv2.putText(
-                    frame,
-                    f"INTRUDER ID: {track_id}",
-                    (x1, max(y1 - 10, 25)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 0, 255),
-                    2
-                )
-
-            # ------------------------------------------------
-            # NORMAL PERSON
-            # ------------------------------------------------
-
-            else:
-
-                cv2.rectangle(
-                    frame,
-                    (x1, y1),
-                    (x2, y2),
-                    (0, 255, 0),
-                    2
-                )
-
-                cv2.putText(
-                    frame,
-                    f"PERSON ID: {track_id}",
-                    (x1, max(y1 - 10, 25)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 0),
-                    2
-                )
+        if inside_zone:
+            current_intrusions.add(track_id)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
+            cv2.putText(frame, f"INTRUDER ID: {track_id}", (x1, max(y1 - 10, 25)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        else:
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, f"{d['class'].upper()} ID: {track_id}", (x1, max(y1 - 10, 25)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
     # ========================================================
     # NEW INTRUSIONS
@@ -469,21 +402,15 @@ while True:
         # SAVE LOG
         # ----------------------------------------------------
 
-        with open(
-            LOG_FILE,
-            "a",
-            newline=""
-        ) as file:
-
-            writer = csv.writer(file)
-
-            writer.writerow([
-                date_string,
-                time_string,
-                track_id,
-                "INTRUSION",
-                snapshot_path
-            ])
+        matched = next((d for d in detections if d['id'] == track_id), None)
+        log_event(
+            camera_id="cam_01",
+            object_type=matched['class'] if matched else "person",
+            track_id=track_id,
+            event_type="intrusion",
+            confidence=matched['confidence'] if matched else None,
+            snapshot_path=snapshot_path
+        )
 
         # ----------------------------------------------------
         # TERMINAL ALERT
