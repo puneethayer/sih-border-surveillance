@@ -4,6 +4,8 @@ import os
 import csv
 from datetime import datetime
 import numpy as np
+from database.db import init_db, log_event, get_all_events
+from detector import Detector
 
 # ============================================================
 # IBVAP - VIRTUAL FENCE INTRUSION DETECTION
@@ -33,33 +35,13 @@ os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
 # ============================================================
-# CSV LOG
-# ============================================================
-
-with open(LOG_FILE, "w", newline="") as file:
-
-    writer = csv.writer(file)
-
-    writer.writerow([
-        "Date",
-        "Time",
-        "Object ID",
-        "Category",
-        "Event",
-        "Centroid X",
-        "Centroid Y",
-        "Snapshot"
-    ])
-
-# ============================================================
 # LOAD MODEL
 # ============================================================
 
-print("Loading YOLO model...")
-
-model = YOLO(MODEL_PATH)
-
-print("YOLO model loaded successfully!")
+print("Loading detector...")
+detector = Detector(model_path='yolov8n.pt')
+init_db()
+print("Detector loaded successfully!")
 
 # ============================================================
 # OPEN VIDEO
@@ -295,15 +277,7 @@ while True:
     # YOLO TRACKING
     # --------------------------------------------------------
 
-    results = model.track(
-        frame,
-        persist=True,
-        classes=DETECTION_CLASSES,
-        tracker="bytetrack.yaml",
-        verbose=False
-    )
-
-    boxes = results[0].boxes
+    detections = detector.detect_and_track(frame)
 
     current_intrusions = set()
 
@@ -349,227 +323,166 @@ while True:
     # TRACKED OBJECTS
     # --------------------------------------------------------
 
-    if boxes.id is not None:
+    for d in detections:
+        x1, y1, x2, y2 = d['bbox']
+        track_id = d['id']
+        category = d['class']
+        confidence = d['confidence']
+        centroid = d['centroid']
+        center_x, center_y = centroid
+    # everything below this line — trail saving, drawing, polygon check,
+    # crossed_into_zone logic — stays EXACTLY the same as your current code,
+    # just remove the "OBJECT CATEGORY" if/elif block since `category` is
+    # already given by detector.py
 
-        coordinates = boxes.xyxy.cpu().numpy()
+        # ------------------------------------------------
+        # SAVE TRAIL
+        # ------------------------------------------------
 
-        track_ids = boxes.id.cpu().numpy().astype(int)
+        if track_id not in centroid_history:
+            centroid_history[track_id] = []
 
-        class_ids = boxes.cls.cpu().numpy().astype(int)
+        centroid_history[track_id].append(
+            centroid
+        )
 
-        confidences = boxes.conf.cpu().numpy()
+        if len(centroid_history[track_id]) > MAX_TRAIL:
 
-        for box, track_id, class_id, confidence in zip(
-            coordinates,
-            track_ids,
-            class_ids,
-            confidences
-        ):
+            centroid_history[track_id].pop(0)
 
-            x1, y1, x2, y2 = map(int, box)
+        # ------------------------------------------------
+        # DRAW TRAIL
+        # ------------------------------------------------
 
-            # ------------------------------------------------
-            # OBJECT CATEGORY
-            # ------------------------------------------------
+        trail = centroid_history[track_id]
 
-            if class_id == 0:
-                category = "person"
+        for i in range(1,len(trail)):
 
-            elif class_id == 2:
-                category = "car"
-
-            elif class_id == 5:
-                category = "bus"
-
-            elif class_id == 7:
-                category = "truck"
-
-            else:
-                category = "object"
-
-            # ------------------------------------------------
-            # CENTROID
-            # ------------------------------------------------
-
-            center_x = (x1 + x2) // 2
-            center_y = (y1 + y2) // 2
-
-            centroid = (center_x, center_y)
-
-            # ------------------------------------------------
-            # SAVE TRAIL
-            # ------------------------------------------------
-
-            if track_id not in centroid_history:
-
-                centroid_history[track_id] = []
-
-            centroid_history[track_id].append(
-                centroid
-            )
-
-            if len(centroid_history[track_id]) > MAX_TRAIL:
-
-                centroid_history[track_id].pop(0)
-
-            # ------------------------------------------------
-            # DRAW TRAIL
-            # ------------------------------------------------
-
-            trail = centroid_history[track_id]
-
-            for i in range(
-                1,
-                len(trail)
-            ):
-
-                cv2.line(
-                    frame,
-                    trail[i - 1],
-                    trail[i],
-                    (255, 0, 255),
-                    2
-                )
-
-            # ------------------------------------------------
-            # CHECK POLYGON
-            # ------------------------------------------------
-
-            result = cv2.pointPolygonTest(
-                polygon_array,
-                centroid,
-                False
-            )
-
-            inside_zone = result >= 0
-
-            # ------------------------------------------------
-            # CHECK PREVIOUS POSITION
-            # ------------------------------------------------
-
-            previous_centroid = previous_positions.get(
-                track_id
-            )
-
-            crossed_into_zone = False
-
-            if previous_centroid is not None:
-
-                previous_result = cv2.pointPolygonTest(
-                    polygon_array,
-                    previous_centroid,
-                    False
-                )
-
-                was_inside = previous_result >= 0
-
-                if not was_inside and inside_zone:
-
-                    crossed_into_zone = True
-
-            # ------------------------------------------------
-            # INTRUSION
-            # ------------------------------------------------
-
-            if inside_zone:
-
-                current_intrusions.add(track_id)
-
-            # ------------------------------------------------
-            # DRAW OBJECT
-            # ------------------------------------------------
-
-            if inside_zone:
-
-                box_color = (0, 0, 255)
-
-            else:
-
-                box_color = (0, 255, 0)
-
-            cv2.rectangle(
+            cv2.line(
                 frame,
-                (x1, y1),
-                (x2, y2),
-                box_color,
-                3
-            )
-
-            # ------------------------------------------------
-            # CENTROID DOT
-            # ------------------------------------------------
-
-            cv2.circle(
-                frame,
-                centroid,
-                7,
+                trail[i - 1],
+                trail[i],
                 (255, 0, 255),
-                -1
+                2
+                )
+
+        # ------------------------------------------------
+        # CHECK POLYGON
+        # ------------------------------------------------
+
+        result = cv2.pointPolygonTest(
+            polygon_array,
+            centroid,
+            False
+        )
+
+        inside_zone = result >= 0
+
+        # ------------------------------------------------
+        # CHECK PREVIOUS POSITION
+        # ------------------------------------------------
+
+        previous_centroid = previous_positions.get(track_id)
+        crossed_into_zone = False
+
+        if previous_centroid is not None:
+            previous_result = cv2.pointPolygonTest(polygon_array,previous_centroid,False)
+            was_inside = previous_result >= 0
+            if not was_inside and inside_zone:
+                crossed_into_zone = True
+
+        # ------------------------------------------------
+        # INTRUSION
+        # ------------------------------------------------
+        if inside_zone:
+            current_intrusions.add(track_id)
+
+        # ------------------------------------------------
+        # DRAW OBJECT
+        # ------------------------------------------------
+        if inside_zone:
+            box_color = (0, 0, 255)
+        else:
+            box_color = (0, 255, 0)
+
+        cv2.rectangle(
+            frame,
+            (x1, y1),
+            (x2, y2),
+            box_color,
+            3
+        )
+
+        # ------------------------------------------------
+        # CENTROID DOT
+        # ------------------------------------------------
+
+        cv2.circle(
+            frame,
+            centroid,
+            7,
+            (255, 0, 255),
+            -1
             )
 
-            # ------------------------------------------------
-            # LABEL
-            # ------------------------------------------------
+        # ------------------------------------------------
+        # LABEL
+        # ------------------------------------------------
 
-            if inside_zone:
+        if inside_zone:
+            label = (
+                f"INTRUDER | ID:{track_id} | "
+                f"{category.upper()}"
+            )
 
-                label = (
-                    f"INTRUDER | ID:{track_id} | "
-                    f"{category.upper()}"
-                )
+        else:
+            label = (
+                f"ID:{track_id} | "
+                f"{category.upper()}"
+            )
+        cv2.putText(
+            frame,
+            label,
+            (x1, max(y1 - 30, 25)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            box_color,
+            2
+        )
 
-            else:
+        # ------------------------------------------------
+        # CENTROID COORDINATES
+        # ------------------------------------------------
 
-                label = (
-                    f"ID:{track_id} | "
-                    f"{category.upper()}"
-                )
+        cv2.putText(
+            frame,
+            f"Centroid: ({center_x}, {center_y})",
+            (x1, min(y2 + 25, height - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            2
+        )
 
+        # ------------------------------------------------
+        # SHOW CROSSING
+        # ------------------------------------------------
+        if crossed_into_zone:
             cv2.putText(
                 frame,
-                label,
-                (x1, max(y1 - 30, 25)),
+                "CROSSED VIRTUAL FENCE!",
+                (x1, min(y2 + 50, height - 10)),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                box_color,
+                0.65,
+                (0, 0, 255),
                 2
             )
 
-            # ------------------------------------------------
-            # CENTROID COORDINATES
-            # ------------------------------------------------
+        # ------------------------------------------------
+        # SAVE CURRENT POSITION
+        # ------------------------------------------------
 
-            cv2.putText(
-                frame,
-                f"Centroid: ({center_x}, {center_y})",
-                (x1, min(y2 + 25, height - 10)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (255, 255, 255),
-                2
-            )
-
-            # ------------------------------------------------
-            # SHOW CROSSING
-            # ------------------------------------------------
-
-            if crossed_into_zone:
-
-                cv2.putText(
-                    frame,
-                    "CROSSED VIRTUAL FENCE!",
-                    (x1, min(y2 + 50, height - 10)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.65,
-                    (0, 0, 255),
-                    2
-                )
-
-            # ------------------------------------------------
-            # SAVE CURRENT POSITION
-            # ------------------------------------------------
-
-            previous_positions[track_id] = centroid
+        previous_positions[track_id] = centroid
 
     # ========================================================
     # NEW INTRUSION EVENTS
@@ -613,26 +526,8 @@ while True:
 
         event_category = "unknown"
 
-        if boxes.id is not None:
-
-            for obj_id, cls_id in zip(
-                boxes.id.cpu().numpy().astype(int),
-                boxes.cls.cpu().numpy().astype(int)
-            ):
-
-                if obj_id == track_id:
-
-                    if cls_id == 0:
-                        event_category = "person"
-
-                    elif cls_id == 2:
-                        event_category = "car"
-
-                    elif cls_id == 5:
-                        event_category = "bus"
-
-                    elif cls_id == 7:
-                        event_category = "truck"
+        matched = next((d for d in detections if d['id'] == track_id), None)
+        event_category = matched['class'] if matched else "unknown"
 
         # ----------------------------------------------------
         # SNAPSHOT
@@ -656,24 +551,14 @@ while True:
         # LOG
         # ----------------------------------------------------
 
-        with open(
-            LOG_FILE,
-            "a",
-            newline=""
-        ) as file:
-
-            writer = csv.writer(file)
-
-            writer.writerow([
-                date_string,
-                time_string,
-                track_id,
-                event_category,
-                "INTRUSION",
-                cx,
-                cy,
-                snapshot_path
-            ])
+        log_event(
+        camera_id="cam_01",
+        object_type=event_category,
+        track_id=track_id,
+        event_type="intrusion",
+        confidence=matched['confidence'] if matched else None,
+        snapshot_path=snapshot_path
+    )
 
         # ----------------------------------------------------
         # TERMINAL ALERT
@@ -808,6 +693,7 @@ print("=" * 60)
 
 print(f"Frames processed : {frame_number}")
 print(f"Intrusion events : {event_number}")
+print(f"DB rows logged   : {len(get_all_events())}")
 print(f"Output video     : {OUTPUT_PATH}")
 print(f"Event log        : {LOG_FILE}")
 print(f"Snapshots        : {SNAPSHOT_DIR}")
