@@ -1,10 +1,25 @@
-venv/
+# Virtual environment
+.venv/
+
+# Video files (potentially sensitive CCTV footage)
+*.mp4
+
+# YOLO model weights (large file, downloaded separately)
+yolo26n.pt
+
+# YOLO runs output
+runs/
+
+# Logs and snapshots (may contain sensitive images)
+logs/
+
+# Python cache
 __pycache__/
 *.pyc
-<<<<<<< HEAD
-.env
-=======
-*.pt
-data/*.mp4
+
+# OS files
 .DS_Store
->>>>>>> cc56ac004fcf3e59ed5d077ee46def24193141b5
+Thumbs.db
+
+# VS Code settings (optional, personal preference)
+.vscode/
