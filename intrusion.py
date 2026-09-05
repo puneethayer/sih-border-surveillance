@@ -4,698 +4,1283 @@ import os
 import csv
 from datetime import datetime
 import numpy as np
-from database.db import init_db, log_event, get_all_events
-from detector import Detector
 
 # ============================================================
-# IBVAP - VIRTUAL FENCE INTRUSION DETECTION
+# DATABASE IMPORT
 # ============================================================
 
-MODEL_PATH = "yolo26n.pt"
-VIDEO_PATH = "cctv.mp4"
-OUTPUT_PATH = "intrusion_result.mp4"
+try:
+    from database.db import init_db, log_event
+except ImportError:
+    from db import init_db, log_event
 
-LOG_DIR = "logs"
+
+# ============================================================
+# PATHS / CONFIGURATION
+# ============================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_PATH = os.path.join(BASE_DIR, "yolo26n.pt")
+DEFAULT_VIDEO_PATH = os.path.join(BASE_DIR, "cctv.mp4")
+
+LOG_DIR = os.path.join(BASE_DIR, "logs")
 SNAPSHOT_DIR = os.path.join(LOG_DIR, "snapshots")
-LOG_FILE = os.path.join(LOG_DIR, "intrusion_log.csv")
 
-# YOLO classes:
+LOG_FILE = os.path.join(BASE_DIR, "intrusion_log.csv")
+DEFAULT_OUTPUT_PATH = os.path.join(BASE_DIR, "intrusion_result.mp4")
+
+CAMERA_ID = "CAM_01"
+
+# YOLO classes
 # 0 = person
 # 2 = car
 # 5 = bus
 # 7 = truck
-
 DETECTION_CLASSES = [0, 2, 5, 7]
 
+
 # ============================================================
-# DIRECTORIES
+# CREATE REQUIRED DIRECTORIES
 # ============================================================
 
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
-# ============================================================
-# LOAD MODEL
-# ============================================================
-
-print("Loading detector...")
-detector = Detector(model_path='yolov8n.pt')
-init_db()
-print("Detector loaded successfully!")
 
 # ============================================================
-# OPEN VIDEO
+# CSV INITIALIZATION
 # ============================================================
 
-cap = cv2.VideoCapture(VIDEO_PATH)
+def initialize_csv():
 
-if not cap.isOpened():
+    if not os.path.exists(LOG_FILE):
 
-    print("ERROR: Could not open cctv.mp4")
-    exit()
+        with open(
+            LOG_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as file:
 
-width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-fps = cap.get(cv2.CAP_PROP_FPS)
+            writer = csv.writer(file)
 
-if fps <= 0:
-    fps = 30
+            writer.writerow([
+                "Event ID",
+                "Timestamp",
+                "Camera ID",
+                "Track ID",
+                "Object",
+                "Category",
+                "Confidence",
+                "Centroid X",
+                "Centroid Y",
+                "Snapshot"
+            ])
 
-print(f"Video resolution: {width} x {height}")
-print(f"FPS: {fps:.2f}")
 
 # ============================================================
-# FIRST FRAME
+# UTILITY FUNCTIONS
 # ============================================================
 
-success, first_frame = cap.read()
+def point_inside_polygon(point, polygon):
 
-if not success:
-
-    print("ERROR: Could not read first frame.")
-
-    cap.release()
-    exit()
-
-# ============================================================
-# VIRTUAL FENCE SELECTION
-# ============================================================
-
-polygon_points = []
-
-selection_frame = first_frame.copy()
-
-
-def mouse_callback(event, x, y, flags, param):
-
-    global polygon_points
-    global selection_frame
-
-    if event == cv2.EVENT_LBUTTONDOWN:
-
-        polygon_points.append((x, y))
-
-        cv2.circle(
-            selection_frame,
-            (x, y),
-            6,
-            (0, 0, 255),
-            -1
-        )
-
-        if len(polygon_points) > 1:
-
-            cv2.line(
-                selection_frame,
-                polygon_points[-2],
-                polygon_points[-1],
-                (0, 0, 255),
-                3
-            )
-
-
-cv2.namedWindow("Select Virtual Fence")
-
-cv2.setMouseCallback(
-    "Select Virtual Fence",
-    mouse_callback
-)
-
-print()
-print("=" * 60)
-print("IBVAP VIRTUAL FENCE SETUP")
-print("=" * 60)
-print("LEFT CLICK = Select fence points")
-print("ENTER      = Confirm")
-print("R          = Reset")
-print("Q          = Quit")
-print("=" * 60)
-
-# ============================================================
-# SELECT ZONE
-# ============================================================
-
-while True:
-
-    display = selection_frame.copy()
-
-    if len(polygon_points) >= 3:
-
-        pts = np.array(
-            polygon_points,
-            dtype=np.int32
-        )
-
-        pts = pts.reshape((-1, 1, 2))
-
-        overlay = display.copy()
-
-        cv2.fillPoly(
-            overlay,
-            [pts],
-            (0, 0, 255)
-        )
-
-        display = cv2.addWeighted(
-            overlay,
-            0.20,
-            display,
-            0.80,
-            0
-        )
-
-        cv2.polylines(
-            display,
-            [pts],
-            True,
-            (0, 0, 255),
-            3
-        )
-
-    cv2.putText(
-        display,
-        "Click 4+ points | ENTER = Confirm | R = Reset | Q = Quit",
-        (20, 35),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.65,
-        (255, 255, 255),
-        2
+    polygon_array = np.array(
+        polygon,
+        dtype=np.int32
     )
 
-    cv2.imshow(
-        "Select Virtual Fence",
-        display
+    return cv2.pointPolygonTest(
+        polygon_array,
+        point,
+        False
+    ) >= 0
+
+
+def calculate_distance(point1, point2):
+
+    return float(
+        np.sqrt(
+            (point1[0] - point2[0]) ** 2 +
+            (point1[1] - point2[1]) ** 2
+        )
     )
 
-    key = cv2.waitKey(1) & 0xFF
 
-    if key == 13:
+# ============================================================
+# MAIN DETECTION FUNCTION
+# ============================================================
 
-        if len(polygon_points) >= 3:
-            break
+def run_detection(
+    video_path=DEFAULT_VIDEO_PATH,
+    fence_points=None,
+    output_path=DEFAULT_OUTPUT_PATH,
+    camera_id=CAMERA_ID
+):
 
-        print("Select at least 3 points.")
+    # ========================================================
+    # VALIDATE FENCE
+    # ========================================================
 
-    elif key == ord("r"):
+    if fence_points is None or len(fence_points) < 3:
 
-        polygon_points = []
+        raise ValueError(
+            "Virtual fence must contain at least 3 points."
+        )
 
-        selection_frame = first_frame.copy()
+    # ========================================================
+    # INITIALIZE DATABASE + CSV
+    # ========================================================
 
-        print("Fence reset.")
+    init_db()
+    initialize_csv()
 
-    elif key == ord("q"):
+    # ========================================================
+    # LOAD YOLO MODEL
+    # ========================================================
 
-        print("Program cancelled.")
+    if not os.path.exists(MODEL_PATH):
+
+        raise FileNotFoundError(
+            f"YOLO model not found: {MODEL_PATH}"
+        )
+
+    model = YOLO(MODEL_PATH)
+
+    # ========================================================
+    # OPEN VIDEO
+    # ========================================================
+
+    if not os.path.exists(video_path):
+
+        raise FileNotFoundError(
+            f"Video not found: {video_path}"
+        )
+
+    cap = cv2.VideoCapture(video_path)
+
+    if not cap.isOpened():
+
+        raise RuntimeError(
+            f"Could not open video: {video_path}"
+        )
+
+    # ========================================================
+    # VIDEO INFORMATION
+    # ========================================================
+
+    width = int(
+        cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    )
+
+    height = int(
+        cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    )
+
+    FPS = cap.get(
+        cv2.CAP_PROP_FPS
+    )
+
+    if FPS <= 0:
+        FPS = 25
+
+    FPS = float(FPS)
+
+    total_frames = int(
+        cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    )
+
+    # ========================================================
+    # VIDEO WRITER
+    # ========================================================
+
+    fourcc = cv2.VideoWriter_fourcc(
+        *"mp4v"
+    )
+
+    writer = cv2.VideoWriter(
+        output_path,
+        fourcc,
+        FPS,
+        (width, height)
+    )
+
+    if not writer.isOpened():
 
         cap.release()
-        cv2.destroyAllWindows()
 
-        exit()
-
-cv2.destroyWindow("Select Virtual Fence")
-
-print()
-print("Virtual fence:")
-print(polygon_points)
-
-# ============================================================
-# OUTPUT VIDEO
-# ============================================================
-
-fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-
-out = cv2.VideoWriter(
-    OUTPUT_PATH,
-    fourcc,
-    fps,
-    (width, height)
-)
-
-# ============================================================
-# TRACKING VARIABLES
-# ============================================================
-
-previous_positions = {}
-
-active_intrusions = set()
-
-event_number = 0
-frame_number = 0
-
-# ============================================================
-# CENTROID TRAILS
-# ============================================================
-
-centroid_history = {}
-
-MAX_TRAIL = 30
-
-# ============================================================
-# POLYGON ARRAY
-# ============================================================
-
-polygon_array = np.array(
-    polygon_points,
-    dtype=np.int32
-)
-
-# ============================================================
-# PROCESS VIDEO
-# ============================================================
-
-while True:
-
-    success, frame = cap.read()
-
-    if not success:
-        break
-
-    frame_number += 1
-
-    # --------------------------------------------------------
-    # YOLO TRACKING
-    # --------------------------------------------------------
-
-    detections = detector.detect_and_track(frame)
-
-    current_intrusions = set()
-
-    # --------------------------------------------------------
-    # DRAW RESTRICTED ZONE
-    # --------------------------------------------------------
-
-    overlay = frame.copy()
-
-    cv2.fillPoly(
-        overlay,
-        [polygon_array],
-        (0, 0, 255)
-    )
-
-    frame = cv2.addWeighted(
-        overlay,
-        0.12,
-        frame,
-        0.88,
-        0
-    )
-
-    cv2.polylines(
-        frame,
-        [polygon_array],
-        True,
-        (0, 0, 255),
-        4
-    )
-
-    cv2.putText(
-        frame,
-        "VIRTUAL RESTRICTED ZONE",
-        (20, 125),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.8,
-        (0, 0, 255),
-        2
-    )
-
-    # --------------------------------------------------------
-    # TRACKED OBJECTS
-    # --------------------------------------------------------
-
-    for d in detections:
-        x1, y1, x2, y2 = d['bbox']
-        track_id = d['id']
-        category = d['class']
-        confidence = d['confidence']
-        centroid = d['centroid']
-        center_x, center_y = centroid
-    # everything below this line — trail saving, drawing, polygon check,
-    # crossed_into_zone logic — stays EXACTLY the same as your current code,
-    # just remove the "OBJECT CATEGORY" if/elif block since `category` is
-    # already given by detector.py
-
-        # ------------------------------------------------
-        # SAVE TRAIL
-        # ------------------------------------------------
-
-        if track_id not in centroid_history:
-            centroid_history[track_id] = []
-
-        centroid_history[track_id].append(
-            centroid
+        raise RuntimeError(
+            f"Could not create output video: {output_path}"
         )
 
-        if len(centroid_history[track_id]) > MAX_TRAIL:
+    # ========================================================
+    # VIRTUAL FENCE
+    # ========================================================
 
-            centroid_history[track_id].pop(0)
+    polygon_array = np.array(
+        fence_points,
+        dtype=np.int32
+    )
 
-        # ------------------------------------------------
-        # DRAW TRAIL
-        # ------------------------------------------------
+    # ========================================================
+    # TRACKING STATE
+    # ========================================================
 
-        trail = centroid_history[track_id]
+    # Last known centroid for currently tracked IDs
+    previous_positions = {}
 
-        for i in range(1,len(trail)):
+    # IDs currently inside the intrusion zone
+    active_intrusions = set()
 
-            cv2.line(
-                frame,
-                trail[i - 1],
-                trail[i],
-                (255, 0, 255),
-                2
-                )
+    # Centroid trails
+    centroid_history = {}
 
-        # ------------------------------------------------
-        # CHECK POLYGON
-        # ------------------------------------------------
+    # Last known information for every track
+    #
+    # This is important because when an object disappears,
+    # current_objects no longer contains it.
+    #
+    # Therefore we keep its last known class, bbox,
+    # centroid and confidence here.
+    last_object_data = {}
 
-        result = cv2.pointPolygonTest(
-            polygon_array,
-            centroid,
-            False
+    MAX_TRAIL = 30
+
+    event_number = 0
+    frame_number = 0
+
+    events = []
+
+    # ========================================================
+    # ID-SWITCH PROTECTION
+    # ========================================================
+
+    # Recently disappeared tracks
+    lost_tracks = {}
+
+    # Remember disappeared objects for 5 seconds
+    LOST_TRACK_BUFFER = int(FPS * 5)
+
+    # Maximum allowed distance between old and new centroid
+    MAX_REID_DISTANCE = 100
+
+    # ========================================================
+    # FRAME LOOP
+    # ========================================================
+
+    while True:
+
+        ret, frame = cap.read()
+
+        if not ret:
+            break
+
+        frame_number += 1
+
+        # ====================================================
+        # YOLO + BYTETRACK
+        # ====================================================
+
+        results = model.track(
+            frame,
+            persist=True,
+            classes=DETECTION_CLASSES,
+            tracker="bytetrack.yaml",
+            verbose=False
         )
 
-        inside_zone = result >= 0
+        boxes = results[0].boxes
 
-        # ------------------------------------------------
-        # CHECK PREVIOUS POSITION
-        # ------------------------------------------------
+        # ====================================================
+        # DRAW VIRTUAL FENCE
+        # ====================================================
 
-        previous_centroid = previous_positions.get(track_id)
-        crossed_into_zone = False
-
-        if previous_centroid is not None:
-            previous_result = cv2.pointPolygonTest(polygon_array,previous_centroid,False)
-            was_inside = previous_result >= 0
-            if not was_inside and inside_zone:
-                crossed_into_zone = True
-
-        # ------------------------------------------------
-        # INTRUSION
-        # ------------------------------------------------
-        if inside_zone:
-            current_intrusions.add(track_id)
-
-        # ------------------------------------------------
-        # DRAW OBJECT
-        # ------------------------------------------------
-        if inside_zone:
-            box_color = (0, 0, 255)
-        else:
-            box_color = (0, 255, 0)
-
-        cv2.rectangle(
+        cv2.polylines(
             frame,
-            (x1, y1),
-            (x2, y2),
-            box_color,
-            3
-        )
-
-        # ------------------------------------------------
-        # CENTROID DOT
-        # ------------------------------------------------
-
-        cv2.circle(
-            frame,
-            centroid,
-            7,
-            (255, 0, 255),
-            -1
-            )
-
-        # ------------------------------------------------
-        # LABEL
-        # ------------------------------------------------
-
-        if inside_zone:
-            label = (
-                f"INTRUDER | ID:{track_id} | "
-                f"{category.upper()}"
-            )
-
-        else:
-            label = (
-                f"ID:{track_id} | "
-                f"{category.upper()}"
-            )
-        cv2.putText(
-            frame,
-            label,
-            (x1, max(y1 - 30, 25)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            box_color,
+            [polygon_array],
+            True,
+            (255, 0, 0),
             2
         )
 
-        # ------------------------------------------------
-        # CENTROID COORDINATES
-        # ------------------------------------------------
+        # ====================================================
+        # CURRENT FRAME STATE
+        # ====================================================
+
+        current_intrusions = set()
+
+        current_objects = {}
+
+        current_track_ids = set()
+
+        # ====================================================
+        # PROCESS DETECTED OBJECTS
+        # ====================================================
+
+        if boxes is not None and boxes.id is not None:
+
+            xyxy = boxes.xyxy.cpu().numpy()
+
+            track_ids = (
+                boxes.id
+                .cpu()
+                .numpy()
+                .astype(int)
+            )
+
+            class_ids = (
+                boxes.cls
+                .cpu()
+                .numpy()
+                .astype(int)
+            )
+
+            confidences = (
+                boxes.conf
+                .cpu()
+                .numpy()
+            )
+
+            # ------------------------------------------------
+            # PROCESS EACH OBJECT
+            # ------------------------------------------------
+
+            for bbox, track_id, class_id, confidence in zip(
+                xyxy,
+                track_ids,
+                class_ids,
+                confidences
+            ):
+
+                x1, y1, x2, y2 = map(
+                    int,
+                    bbox
+                )
+
+                track_id = int(
+                    track_id
+                )
+
+                confidence = float(
+                    confidence
+                )
+
+                current_track_ids.add(
+                    track_id
+                )
+
+                # =================================================
+                # CLASS NAME
+                # =================================================
+
+                class_names = {
+                    0: "person",
+                    2: "car",
+                    5: "bus",
+                    7: "truck"
+                }
+
+                object_class = class_names.get(
+                    class_id,
+                    "unknown"
+                )
+
+                # =================================================
+                # CENTROID
+                # =================================================
+
+                cx = int(
+                    (x1 + x2) / 2
+                )
+
+                cy = int(
+                    (y1 + y2) / 2
+                )
+
+                centroid = (
+                    cx,
+                    cy
+                )
+
+                # =================================================
+                # ID-SWITCH RECOVERY
+                # =================================================
+
+                recovered_old_id = None
+
+                # A new ByteTrack ID may actually belong to an
+                # object that disappeared temporarily.
+                #
+                # Check the recently lost tracks.
+                # =================================================
+
+                if track_id not in previous_positions:
+
+                    best_distance = float(
+                        "inf"
+                    )
+
+                    for old_id, lost_data in list(
+                        lost_tracks.items()
+                    ):
+
+                        # -----------------------------------------
+                        # How long has old ID been missing?
+                        # -----------------------------------------
+
+                        frames_missing = (
+                            frame_number -
+                            lost_data[
+                                "last_seen_frame"
+                            ]
+                        )
+
+                        # -----------------------------------------
+                        # Ignore if missing too long
+                        # -----------------------------------------
+
+                        if (
+                            frames_missing >
+                            LOST_TRACK_BUFFER
+                        ):
+                            continue
+
+                        # -----------------------------------------
+                        # Same object class required
+                        # -----------------------------------------
+
+                        if (
+                            lost_data["class"] !=
+                            object_class
+                        ):
+                            continue
+
+                        # -----------------------------------------
+                        # Calculate centroid distance
+                        # -----------------------------------------
+
+                        distance = calculate_distance(
+                            centroid,
+                            lost_data[
+                                "last_position"
+                            ]
+                        )
+
+                        # -----------------------------------------
+                        # Select closest valid candidate
+                        # -----------------------------------------
+
+                        if (
+                            distance <=
+                            MAX_REID_DISTANCE
+                            and
+                            distance <
+                            best_distance
+                        ):
+
+                            best_distance = distance
+
+                            recovered_old_id = (
+                                old_id
+                            )
+
+                    # =================================================
+                    # RECOVER OLD TRACK STATE
+                    # =================================================
+
+                    if recovered_old_id is not None:
+
+                        old_data = lost_tracks[
+                            recovered_old_id
+                        ]
+
+                        # -----------------------------------------
+                        # Restore previous position
+                        # -----------------------------------------
+
+                        previous_positions[
+                            track_id
+                        ] = old_data[
+                            "last_position"
+                        ]
+
+                        # -----------------------------------------
+                        # Restore intrusion state
+                        # -----------------------------------------
+
+                        if old_data[
+                            "was_intrusion"
+                        ]:
+
+                            active_intrusions.add(
+                                track_id
+                            )
+
+                        # -----------------------------------------
+                        # Restore centroid trail
+                        # -----------------------------------------
+
+                        if (
+                            recovered_old_id
+                            in centroid_history
+                        ):
+
+                            centroid_history[
+                                track_id
+                            ] = centroid_history[
+                                recovered_old_id
+                            ]
+
+                            del centroid_history[
+                                recovered_old_id
+                            ]
+
+                        # -----------------------------------------
+                        # Remove old lost-track entry
+                        # -----------------------------------------
+
+                        del lost_tracks[
+                            recovered_old_id
+                        ]
+
+                        # -----------------------------------------
+                        # Display recovery information
+                        # -----------------------------------------
+
+                        cv2.putText(
+                            frame,
+                            (
+                                f"ID RECOVERED: "
+                                f"{recovered_old_id}"
+                                f"->{track_id}"
+                            ),
+                            (
+                                x1,
+                                max(
+                                    20,
+                                    y1 - 30
+                                )
+                            ),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            (0, 255, 255),
+                            2
+                        )
+
+                # =================================================
+                # CHECK FENCE
+                # =================================================
+
+                inside_zone = point_inside_polygon(
+                    centroid,
+                    fence_points
+                )
+
+                # =================================================
+                # PREVIOUS CENTROID
+                # =================================================
+
+                previous_centroid = (
+                    previous_positions.get(
+                        track_id
+                    )
+                )
+
+                # =================================================
+                # CROSSING DETECTION
+                # =================================================
+
+                crossed_into_zone = False
+
+                if previous_centroid is not None:
+
+                    was_inside = point_inside_polygon(
+                        previous_centroid,
+                        fence_points
+                    )
+
+                    if (
+                        not was_inside
+                        and inside_zone
+                    ):
+
+                        crossed_into_zone = True
+
+                # =================================================
+                # STORE CURRENT OBJECT
+                # =================================================
+
+                current_objects[
+                    track_id
+                ] = {
+
+                    "bbox":
+                        (x1, y1, x2, y2),
+
+                    "centroid":
+                        centroid,
+
+                    "class":
+                        object_class,
+
+                    "confidence":
+                        confidence,
+
+                    "inside_zone":
+                        inside_zone,
+
+                    "crossed_into_zone":
+                        crossed_into_zone
+                }
+
+                # =================================================
+                # SAVE LAST KNOWN OBJECT DATA
+                # =================================================
+
+                last_object_data[
+                    track_id
+                ] = {
+
+                    "bbox":
+                        (x1, y1, x2, y2),
+
+                    "centroid":
+                        centroid,
+
+                    "class":
+                        object_class,
+
+                    "confidence":
+                        confidence
+                }
+
+                # =================================================
+                # INTRUSION STATE
+                # =================================================
+
+                if inside_zone:
+
+                    current_intrusions.add(
+                        track_id
+                    )
+
+                # =================================================
+                # CENTROID TRAIL
+                # =================================================
+
+                if (
+                    track_id
+                    not in centroid_history
+                ):
+
+                    centroid_history[
+                        track_id
+                    ] = []
+
+                centroid_history[
+                    track_id
+                ].append(
+                    centroid
+                )
+
+                centroid_history[
+                    track_id
+                ] = centroid_history[
+                    track_id
+                ][-MAX_TRAIL:]
+
+                # =================================================
+                # DRAW TRAIL
+                # =================================================
+
+                trail = centroid_history[
+                    track_id
+                ]
+
+                for i in range(
+                    1,
+                    len(trail)
+                ):
+
+                    cv2.line(
+                        frame,
+                        trail[i - 1],
+                        trail[i],
+                        (255, 255, 0),
+                        2
+                    )
+
+                # =================================================
+                # DRAW BOUNDING BOX
+                # =================================================
+
+                if inside_zone:
+
+                    box_color = (
+                        0,
+                        0,
+                        255
+                    )
+
+                else:
+
+                    box_color = (
+                        0,
+                        255,
+                        0
+                    )
+
+                cv2.rectangle(
+                    frame,
+                    (x1, y1),
+                    (x2, y2),
+                    box_color,
+                    2
+                )
+
+                # =================================================
+                # OBJECT LABEL
+                # =================================================
+
+                label = (
+                    f"{object_class} "
+                    f"ID:{track_id} "
+                    f"{confidence:.2f}"
+                )
+
+                cv2.putText(
+                    frame,
+                    label,
+                    (
+                        x1,
+                        max(
+                            20,
+                            y1 - 10
+                        )
+                    ),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    box_color,
+                    2
+                )
+
+                # =================================================
+                # INTRUSION LABEL
+                # =================================================
+
+                if crossed_into_zone:
+
+                    cv2.putText(
+                        frame,
+                        "INTRUSION!",
+                        (
+                            x1,
+                            y2 + 20
+                        ),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (0, 0, 255),
+                        2
+                    )
+
+                elif inside_zone:
+
+                    cv2.putText(
+                        frame,
+                        "INSIDE ZONE",
+                        (
+                            x1,
+                            y2 + 20
+                        ),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (0, 0, 255),
+                        2
+                    )
+
+                # =================================================
+                # UPDATE PREVIOUS POSITION
+                # =================================================
+
+                previous_positions[
+                    track_id
+                ] = centroid
+
+        # ========================================================
+        # FIND DISAPPEARED TRACKS
+        # ========================================================
+
+        previously_tracked_ids = set(
+            previous_positions.keys()
+        )
+
+        disappeared_ids = (
+            previously_tracked_ids -
+            current_track_ids
+        )
+
+        for old_id in disappeared_ids:
+
+            # ------------------------------------------------
+            # Get last known object information
+            # ------------------------------------------------
+
+            if old_id not in last_object_data:
+                continue
+
+            old_data = last_object_data[
+                old_id
+            ]
+
+            # ------------------------------------------------
+            # Save object to lost-track memory
+            # ------------------------------------------------
+
+            lost_tracks[
+                old_id
+            ] = {
+
+                "last_seen_frame":
+                    frame_number - 1,
+
+                "last_position":
+                    old_data[
+                        "centroid"
+                    ],
+
+                "class":
+                    old_data[
+                        "class"
+                    ],
+
+                "confidence":
+                    old_data[
+                        "confidence"
+                    ],
+
+                "bbox":
+                    old_data[
+                        "bbox"
+                    ],
+
+                "was_intrusion":
+                    old_id in active_intrusions
+            }
+
+        # ========================================================
+        # CLEAN EXPIRED LOST TRACKS
+        # ========================================================
+
+        expired_lost_tracks = []
+
+        for old_id, lost_data in list(
+            lost_tracks.items()
+        ):
+
+            frames_missing = (
+                frame_number -
+                lost_data[
+                    "last_seen_frame"
+                ]
+            )
+
+            if (
+                frames_missing >
+                LOST_TRACK_BUFFER
+            ):
+
+                expired_lost_tracks.append(
+                    old_id
+                )
+
+        for old_id in expired_lost_tracks:
+
+            lost_tracks.pop(
+                old_id,
+                None
+            )
+
+            previous_positions.pop(
+                old_id,
+                None
+            )
+
+            centroid_history.pop(
+                old_id,
+                None
+            )
+
+            last_object_data.pop(
+                old_id,
+                None
+            )
+
+            active_intrusions.discard(
+                old_id
+            )
+
+        # ========================================================
+        # DETECT NEW INTRUSIONS
+        # ========================================================
+
+        new_intrusions = (
+            current_intrusions -
+            active_intrusions
+        )
+
+        # ========================================================
+        # LOG NEW INTRUSIONS
+        # ========================================================
+
+        for intrusion_id in new_intrusions:
+
+            if (
+                intrusion_id
+                not in current_objects
+            ):
+                continue
+
+            object_data = current_objects[
+                intrusion_id
+            ]
+
+            event_number += 1
+
+            timestamp = datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+            # =================================================
+            # SNAPSHOT
+            # =================================================
+
+            snapshot_filename = (
+                f"event_{event_number}_"
+                f"{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                ".jpg"
+            )
+
+            snapshot_path = os.path.join(
+                SNAPSHOT_DIR,
+                snapshot_filename
+            )
+
+            cv2.imwrite(
+                snapshot_path,
+                frame
+            )
+
+            # =================================================
+            # CATEGORY
+            # =================================================
+
+            category = (
+                "person"
+                if object_data[
+                    "class"
+                ] == "person"
+                else "vehicle"
+            )
+
+            # =================================================
+            # SQLITE LOGGING
+            # =================================================
+
+            try:
+
+                log_event(
+                    timestamp=timestamp,
+                    camera_id=camera_id,
+                    track_id=intrusion_id,
+                    object_type=object_data[
+                        "class"
+                    ],
+                    category=category,
+                    confidence=object_data[
+                        "confidence"
+                    ],
+                    centroid_x=object_data[
+                        "centroid"
+                    ][0],
+                    centroid_y=object_data[
+                        "centroid"
+                    ][1],
+                    snapshot=snapshot_path
+                )
+
+            except TypeError:
+
+                # Compatibility with older db.py versions
+                try:
+
+                    log_event(
+                        timestamp,
+                        camera_id,
+                        intrusion_id,
+                        object_data[
+                            "class"
+                        ],
+                        object_data[
+                            "confidence"
+                        ],
+                        snapshot_path
+                    )
+
+                except Exception as db_error:
+
+                    print(
+                        f"Database logging error: "
+                        f"{db_error}"
+                    )
+
+            except Exception as db_error:
+
+                print(
+                    f"Database logging error: "
+                    f"{db_error}"
+                )
+
+            # =================================================
+            # CSV LOGGING
+            # =================================================
+
+            try:
+
+                with open(
+                    LOG_FILE,
+                    "a",
+                    newline="",
+                    encoding="utf-8"
+                ) as file:
+
+                    csv_writer = csv.writer(
+                        file
+                    )
+
+                    csv_writer.writerow([
+
+                        event_number,
+
+                        timestamp,
+
+                        camera_id,
+
+                        intrusion_id,
+
+                        object_data[
+                            "class"
+                        ],
+
+                        category,
+
+                        f"{object_data['confidence']:.4f}",
+
+                        object_data[
+                            "centroid"
+                        ][0],
+
+                        object_data[
+                            "centroid"
+                        ][1],
+
+                        snapshot_path
+                    ])
+
+            except Exception as csv_error:
+
+                print(
+                    f"CSV logging error: "
+                    f"{csv_error}"
+                )
+
+            # =================================================
+            # EVENT OBJECT
+            # =================================================
+
+            event = {
+
+                "event_id":
+                    event_number,
+
+                "timestamp":
+                    timestamp,
+
+                "camera_id":
+                    camera_id,
+
+                "track_id":
+                    intrusion_id,
+
+                "object":
+                    object_data[
+                        "class"
+                    ],
+
+                "category":
+                    category,
+
+                "confidence":
+                    object_data[
+                        "confidence"
+                    ],
+
+                "centroid":
+                    object_data[
+                        "centroid"
+                    ],
+
+                "snapshot":
+                    snapshot_path
+            }
+
+            events.append(
+                event
+            )
+
+        # ========================================================
+        # UPDATE ACTIVE INTRUSIONS
+        # ========================================================
+
+        active_intrusions = set(
+            current_intrusions
+        )
+
+        # ========================================================
+        # DISPLAY FRAME INFORMATION
+        # ========================================================
 
         cv2.putText(
             frame,
-            f"Centroid: ({center_x}, {center_y})",
-            (x1, min(y2 + 25, height - 10)),
+            f"Frame: {frame_number}",
+            (10, 25),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
+            0.6,
             (255, 255, 255),
             2
         )
 
-        # ------------------------------------------------
-        # SHOW CROSSING
-        # ------------------------------------------------
-        if crossed_into_zone:
-            cv2.putText(
-                frame,
-                "CROSSED VIRTUAL FENCE!",
-                (x1, min(y2 + 50, height - 10)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                (0, 0, 255),
-                2
-            )
-
-        # ------------------------------------------------
-        # SAVE CURRENT POSITION
-        # ------------------------------------------------
-
-        previous_positions[track_id] = centroid
-
-    # ========================================================
-    # NEW INTRUSION EVENTS
-    # ========================================================
-
-    new_intrusions = (
-        current_intrusions
-        - active_intrusions
-    )
-
-    for track_id in new_intrusions:
-
-        event_number += 1
-
-        # Get latest centroid
-
-        if track_id in centroid_history:
-
-            event_centroid = (
-                centroid_history[track_id][-1]
-            )
-
-        else:
-
-            event_centroid = (0, 0)
-
-        cx = event_centroid[0]
-        cy = event_centroid[1]
-
-        now = datetime.now()
-
-        date_string = now.strftime(
-            "%Y-%m-%d"
+        cv2.putText(
+            frame,
+            f"Intrusions: {event_number}",
+            (10, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 0, 255),
+            2
         )
 
-        time_string = now.strftime(
-            "%H:%M:%S"
+        cv2.putText(
+            frame,
+            f"Tracked: {len(current_track_ids)}",
+            (10, 75),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (255, 255, 255),
+            2
         )
 
-        # Find category from current boxes
-
-        event_category = "unknown"
-
-        matched = next((d for d in detections if d['id'] == track_id), None)
-        event_category = matched['class'] if matched else "unknown"
-
-        # ----------------------------------------------------
-        # SNAPSHOT
-        # ----------------------------------------------------
-
-        snapshot_name = (
-            f"intrusion_{event_number:04d}.jpg"
+        cv2.putText(
+            frame,
+            f"Lost Memory: {len(lost_tracks)}",
+            (10, 100),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 255, 255),
+            2
         )
 
-        snapshot_path = os.path.join(
-            SNAPSHOT_DIR,
-            snapshot_name
-        )
+        # ========================================================
+        # WRITE FRAME
+        # ========================================================
 
-        cv2.imwrite(
-            snapshot_path,
+        writer.write(
             frame
         )
 
-        # ----------------------------------------------------
-        # LOG
-        # ----------------------------------------------------
+    # ============================================================
+    # RELEASE RESOURCES
+    # ============================================================
 
-        log_event(
-        camera_id="cam_01",
-        object_type=event_category,
-        track_id=track_id,
-        event_type="intrusion",
-        confidence=matched['confidence'] if matched else None,
-        snapshot_path=snapshot_path
-    )
+    cap.release()
+    writer.release()
 
-        # ----------------------------------------------------
-        # TERMINAL ALERT
-        # ----------------------------------------------------
+    # ============================================================
+    # RETURN RESULTS
+    # ============================================================
 
-        print()
-        print("=" * 60)
-        print("INTRUSION DETECTED")
-        print(f"Object ID : {track_id}")
-        print(f"Category  : {event_category}")
-        print(f"Centroid  : ({cx}, {cy})")
-        print(f"Date      : {date_string}")
-        print(f"Time      : {time_string}")
-        print(f"Snapshot  : {snapshot_path}")
-        print("=" * 60)
+    return {
 
-    # ========================================================
-    # UPDATE ACTIVE INTRUSIONS
-    # ========================================================
+        "processed_frames":
+            frame_number,
 
-    active_intrusions = current_intrusions
+        "intrusion_count":
+            event_number,
 
-    # ========================================================
-    # STATUS
-    # ========================================================
+        "events":
+            events,
 
-    if len(current_intrusions) > 0:
+        "output_video":
+            output_path,
 
-        cv2.putText(
-            frame,
-            "!!! INTRUSION DETECTED !!!",
-            (20, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.9,
-            (0, 0, 255),
-            3
-        )
+        "database":
+            os.path.join(
+                BASE_DIR,
+                "database",
+                "ibvap.db"
+            ),
 
-        cv2.putText(
-            frame,
-            f"Active Intruders: {len(current_intrusions)}",
-            (20, 85),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 0, 255),
-            2
-        )
+        "csv_log":
+            LOG_FILE,
 
-    else:
+        "snapshots":
+            SNAPSHOT_DIR
+    }
 
-        cv2.putText(
-            frame,
-            "STATUS: SECURE",
-            (20, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.9,
-            (0, 255, 0),
-            2
-        )
-
-    # ========================================================
-    # INFORMATION PANEL
-    # ========================================================
-
-    cv2.putText(
-        frame,
-        f"Frame: {frame_number}",
-        (20, height - 75),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (255, 255, 255),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"Intrusion Events: {event_number}",
-        (20, height - 45),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (255, 255, 255),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        "IBVAP | AI VIRTUAL FENCE",
-        (20, height - 15),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (255, 255, 255),
-        2
-    )
-
-    # ========================================================
-    # SAVE FRAME
-    # ========================================================
-
-    out.write(frame)
-
-    # ========================================================
-    # DISPLAY
-    # ========================================================
-
-    cv2.imshow(
-        "IBVAP - Virtual Fence Intrusion Detection",
-        frame
-    )
-
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-
-        print("\nStopped by user.")
-        break
 
 # ============================================================
-# CLEANUP
+# TERMINAL MODE
 # ============================================================
 
-cap.release()
-out.release()
+if __name__ == "__main__":
 
-cv2.destroyAllWindows()
+    print("=" * 60)
 
-# ============================================================
-# FINAL REPORT
-# ============================================================
+    print(
+        "IBVAP - Intelligent Boundary Violation "
+        "& Alert Platform"
+    )
 
-print()
-print("=" * 60)
-print("IBVAP INTRUSION DETECTION COMPLETE")
-print("=" * 60)
+    print("=" * 60)
 
-print(f"Frames processed : {frame_number}")
-print(f"Intrusion events : {event_number}")
-print(f"DB rows logged   : {len(get_all_events())}")
-print(f"Output video     : {OUTPUT_PATH}")
-print(f"Event log        : {LOG_FILE}")
-print(f"Snapshots        : {SNAPSHOT_DIR}")
+    print(
+        "\nThis module is designed to be called "
+        "from the Streamlit application."
+    )
 
-print("=" * 60)
+    print(
+        "\nID-switch protection:"
+    )
+
+    print(
+        "  - Recent lost-track memory : ENABLED"
+    )
+
+    print(
+        "  - Track recovery window    : 5 seconds"
+    )
+
+    print(
+        "  - Spatial matching         : ENABLED"
+    )
+
+    print(
+        "  - Class matching           : ENABLED"
+    )
+
+    print(
+        "  - Last-object memory       : ENABLED"
+    )
+
+    print(
+        "\nUse run_detection() from the application."
+    )

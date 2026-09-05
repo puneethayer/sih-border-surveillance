@@ -1,0 +1,10 @@
+Event ID,Timestamp,Camera ID,Track ID,Object,Category,Confidence,Centroid X,Centroid Y,Snapshot
+1,2026-09-05 17:35:18,CAM_01,1,car,vehicle,0.8086,606,407,C:\Users\sharm\CCTV-YOLO\logs\snapshots\event_1_20260905_173518.jpg
+2,2026-09-05 17:35:19,CAM_01,1,car,vehicle,0.4741,624,438,C:\Users\sharm\CCTV-YOLO\logs\snapshots\event_2_20260905_173519.jpg
+3,2026-09-05 17:35:24,CAM_01,40,car,vehicle,0.4404,723,399,C:\Users\sharm\CCTV-YOLO\logs\snapshots\event_3_20260905_173524.jpg
+4,2026-09-05 17:35:25,CAM_01,40,car,vehicle,0.1523,723,394,C:\Users\sharm\CCTV-YOLO\logs\snapshots\event_4_20260905_173525.jpg
+1,2026-09-05 17:46:08,CAM_01,1,person,person,0.8785,431,328,C:\Users\sharm\CCTV-YOLO\logs\snapshots\event_1_20260905_174608.jpg
+2,2026-09-05 17:46:08,CAM_01,3,car,vehicle,0.7955,450,344,C:\Users\sharm\CCTV-YOLO\logs\snapshots\event_2_20260905_174608.jpg
+3,2026-09-05 17:46:08,CAM_01,4,person,person,0.8697,429,328,C:\Users\sharm\CCTV-YOLO\logs\snapshots\event_3_20260905_174608.jpg
+4,2026-09-05 17:46:28,CAM_01,6,person,person,0.6822,414,327,C:\Users\sharm\CCTV-YOLO\logs\snapshots\event_4_20260905_174628.jpg
+5,2026-09-05 17:46:29,CAM_01,4,person,person,0.8949,415,327,C:\Users\sharm\CCTV-YOLO\logs\snapshots\event_5_20260905_174629.jpg
