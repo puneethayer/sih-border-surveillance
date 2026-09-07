@@ -27,6 +27,11 @@ MODEL_PATH = os.path.join(
     "yolo26n.pt"
 )
 
+POSE_MODEL_PATH = os.path.join(
+    BASE_DIR,
+    "yolo11n-pose.pt"
+)
+
 DEFAULT_VIDEO_PATH = os.path.join(
     BASE_DIR,
     "cctv.mp4"
@@ -73,7 +78,6 @@ DETECTION_CLASSES = [
     5,
     7
 ]
-
 
 # ============================================================
 # DISPLAY NAMES
@@ -617,21 +621,23 @@ def run_detection(
     initialize_csv()
 
 
-    # ========================================================
+   # ========================================================
     # LOAD YOLO
     # ========================================================
 
     print()
-    print(
-        "Loading YOLO model..."
-    )
+    print("Loading YOLO models...")
 
     model = YOLO(
         MODEL_PATH
     )
 
+    pose_model = YOLO(
+        POSE_MODEL_PATH
+    )
+
     print(
-        "YOLO model loaded successfully!"
+        "YOLO models loaded successfully!"
     )
 
 
@@ -841,6 +847,15 @@ def run_detection(
 
         boxes = results[0].boxes
 
+        # ====================================================
+        # YOLO POSE DETECTION
+        # ====================================================
+
+        pose_results = pose_model(
+            frame,
+            verbose=False
+        )
+
 
         # ====================================================
         # CURRENT FRAME DATA
@@ -990,12 +1005,75 @@ def run_detection(
                     center_y
                 )
 
+                    # =============================================
+                    # HUMAN BODY ESTIMATED POINTS
+                    # =============================================
+
+            body_points = {}
+
+                    # Only create body points for humans
+            if class_id == 0:
+
+                        box_width = x2 - x1
+                        box_height = y2 - y1
+
+                        # 1. HEAD
+                        head = (
+                            (x1 + x2) // 2,
+                            y1 + int(box_height * 0.10)
+                        )
+
+                        # 2. LEFT HAND
+                        left_hand = (
+                            x1,
+                            y1 + int(box_height * 0.40)
+                        )
+
+                        # 3. RIGHT HAND
+                        right_hand = (
+                            x2,
+                            y1 + int(box_height * 0.40)
+                        )
+
+                        # 4. CHEST
+                        chest = (
+                            (x1 + x2) // 2,
+                            y1 + int(box_height * 0.35)
+                        )
+
+                        # 5. CORE / CENTRE
+                        core = (
+                            (x1 + x2) // 2,
+                            y1 + int(box_height * 0.55)
+                        )
+
+                        # 6. LEFT LEG
+                        left_leg = (
+                            x1 + int(box_width * 0.30),
+                            y2 - int(box_height * 0.05)
+                        )
+
+                        # 7. RIGHT LEG
+                        right_leg = (
+                            x1 + int(box_width * 0.70),
+                            y2 - int(box_height * 0.05)
+                        )
+
+                        body_points = {
+                            "HEAD": head,
+                            "L_HAND": left_hand,
+                            "R_HAND": right_hand,
+                            "CHEST": chest,
+                            "CORE": core,
+                            "L_LEG": left_leg,
+                            "R_LEG": right_leg
+                        }
 
                 # =============================================
                 # STORE CURRENT OBJECT
                 # =============================================
 
-                current_objects[
+            current_objects[
                     track_id
                 ] = {
 
@@ -1017,7 +1095,7 @@ def run_detection(
                 # TRAIL
                 # =============================================
 
-                if (
+            if (
                     track_id
                     not in centroid_history
                 ):
@@ -1025,16 +1103,12 @@ def run_detection(
                     centroid_history[
                         track_id
                     ] = []
-
-
-                centroid_history[
+                    centroid_history[
                     track_id
                 ].append(
                     centroid
                 )
-
-
-                if (
+                    if (
                     len(
                         centroid_history[
                             track_id
@@ -1043,23 +1117,17 @@ def run_detection(
                     >
                     MAX_TRAIL
                 ):
-
-                    centroid_history[
+                         centroid_history[
                         track_id
                     ].pop(0)
-
-
-                trail = centroid_history[
+                         trail = centroid_history[
                     track_id
                 ]
-
-
-                for i in range(
+                         for i in range(
                     1,
                     len(trail)
                 ):
-
-                    cv2.line(
+                             cv2.line(
                         frame,
                         trail[i - 1],
                         trail[i],
@@ -1067,21 +1135,40 @@ def run_detection(
                         2
                     )
 
+                 # =============================================
+                 # CHECK FENCE USING MULTIPLE BODY POINTS
+                 # =============================================
 
-                # =============================================
-                # CHECK FENCE
-                # =============================================
+            inside_zone = False
 
-                result = cv2.pointPolygonTest(
-                    polygon_array,
-                    centroid,
-                    False
-                )
+                # For humans, check every body point
+            if class_id == 0:
 
-                inside_zone = (
-                    result >= 0
-                )
+                for point_name, point in body_points.items():
 
+                     result = cv2.pointPolygonTest(
+                        polygon_array,
+                        point,
+                        False
+                    )
+
+                        # ANY point inside the zone = intrusion
+                     if result >= 0:
+
+                        inside_zone = True
+                        break
+
+
+                # For non-human objects, use centroid
+                else:
+
+                    result = cv2.pointPolygonTest(
+                        polygon_array,
+                        centroid,
+                        False
+                    )
+
+                    inside_zone = result >= 0   
 
                 # =============================================
                 # GET LOGICAL ID
@@ -1292,7 +1379,47 @@ def run_detection(
                     (255, 0, 255),
                     -1
                 )
+                # =============================================
+                # =============================================
+            # DRAW HUMAN BODY DETECTION POINTS
+            # =============================================
 
+            if class_id == 0:
+
+                # Same colour for all points and connections
+                body_color = (0, 255, 255)
+
+                # Define which points should be connected
+                connections = [
+                    ("HEAD", "CHEST"),
+                    ("CHEST", "L_HAND"),
+                    ("CHEST", "R_HAND"),
+                    ("CHEST", "CORE"),
+                    ("CORE", "L_LEG"),
+                    ("CORE", "R_LEG")
+                ]
+
+                # Draw connecting lines first
+                for point1, point2 in connections:
+
+                    cv2.line(
+                        frame,
+                        body_points[point1],
+                        body_points[point2],
+                        body_color,
+                        2
+                    )
+
+                # Draw all body points
+                for point_name, point in body_points.items():
+
+                    cv2.circle(
+                        frame,
+                        point,
+                        6,
+                        body_color,
+                        -1
+                    )
 
                 # =============================================
                 # LABEL
