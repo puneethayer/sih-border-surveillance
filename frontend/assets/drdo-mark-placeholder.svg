@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 100">
+<circle cx="42" cy="48" r="34" fill="none" stroke="#c9d8c7" stroke-width="3"/>
+<circle cx="42" cy="48" r="24" fill="none" stroke="#6f896e" stroke-width="1"/>
+<path d="M30 48h24M42 36v24M25 32l34 32M59 32L25 64" stroke="#c9d8c7" stroke-width="2" opacity=".8"/>
+<text x="87" y="43" fill="#e5ebe4" font-family="Arial" font-size="16" font-weight="800" letter-spacing="2">DRDO</text>
+<text x="87" y="58" fill="#92a197" font-family="Arial" font-size="7" letter-spacing="1">MINISTRY OF DEFENCE</text>
+<text x="87" y="70" fill="#92a197" font-family="Arial" font-size="6" letter-spacing="1">GOVERNMENT OF INDIA</text>
+</svg>

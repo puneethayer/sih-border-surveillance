@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#07100d">
+  <meta name="description" content="IBVAP — Intelligent Border Virtual AI Protection">
+  <title>IBVAP | Intelligent Border Virtual AI Protection</title>
+  <link rel="preload" href="assets/hero-border.png" as="image" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+
+      <!-- IBVAP team logo -->
+      <a class="logo-slot team-logo" href="#home" aria-label="IBVAP home" title="IBVAP">
+        <span class="team-logo-mark" aria-hidden="true">
+          <span>IB</span>
+        </span>
+      </a>
+
+      <a class="brand" href="#home" aria-label="IBVAP home">
+        <span class="brand-symbol">IB</span>
+        <span>
+          <b>IBVAP</b>
+          <small>INTELLIGENT BORDER VIDEO ANALYTICS PLATFORM</small>
+        </span>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Main navigation">
+        <a href="#home">HOME</a>
+        <a href="#surveillance">SURVEILLANCE</a>
+        <a href="#events">EVENTS</a>
+        <a href="#analytics">ANALYTICS</a>
+        <a href="#about">ABOUT</a>
+      </nav>
+
+      <div class="header-right">
+        <button class="theme-btn" id="themeToggle" aria-label="Switch day/night mode">
+          <span id="themeIcon">☾</span>
+        </button>
+        <button class="menu-btn" id="menuBtn" aria-label="Open navigation">☰</button>
+      </div>
+    </div>
+
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="#home">HOME</a>
+      <a href="#surveillance">SURVEILLANCE</a>
+      <a href="#events">EVENTS</a>
+      <a href="#analytics">ANALYTICS</a>
+      <a href="#about">ABOUT</a>
+    </div>
+  </header>
+
+  <main id="home">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-image"></div>
+      <div class="hero-vignette"></div>
+      <div class="hero-grid"></div>
+
+      <div class="hero-content reveal">
+        <div class="eyebrow"><span></span> AI-ASSISTED BORDER SURVEILLANCE</div>
+        <h1>Watch the line.<br><em>Protect the perimeter.</em></h1>
+        <p>
+          Intelligent CCTV monitoring powered by YOLO detection, ByteTrack tracking
+          and virtual perimeter intrusion analysis.
+        </p>
+
+        <div class="hero-actions">
+          <a class="btn-primary" href="#surveillance">OPEN COMMAND CENTER <span>→</span></a>
+        </div>
+
+        <div class="hero-status">
+          <span><i></i> SYSTEM ONLINE</span>
+          <span>CAM_01 CONNECTED</span>
+          <span>AI ENGINE READY</span>
+        </div>
+      </div>
+
+      <div class="hero-bottom">
+        <span>IBVAP // BORDER SECTOR A</span>
+        <span>09 SEP 2026 <b id="clock">--:--:-- IST</b></span>
+      </div>
+    </section>
+
+    <!-- SIMPLE STATUS STRIP -->
+    <section class="status-strip reveal">
+      <div><span>01</span><b>ACTIVE CAMERA</b><small>CAM_01 / SECTOR A</small></div>
+      <div><span>03</span><b>ACTIVE INTRUSIONS</b><small class="danger">IMMEDIATE REVIEW</small></div>
+      <div><span>128</span><b>AI EVENTS</b><small>LAST 24 HOURS</small></div>
+      <div><span>94%</span><b>AI CONFIDENCE</b><small class="green">STABLE INFERENCE</small></div>
+    </section>
+
+    <!-- SURVEILLANCE -->
+    <section class="section" id="surveillance">
+      <div class="section-heading reveal">
+        <div>
+          <span class="eyebrow">01 / SURVEILLANCE</span>
+          <h2>Situational awareness,<br><em>at a glance.</em></h2>
+        </div>
+        <p>One clear operational view of the monitored perimeter, tracked objects and current system state.</p>
+      </div>
+
+      <div class="surveillance-layout">
+        <article class="feed-card reveal">
+          <div class="feed-head">
+            <div>
+              <span class="live"><i></i> LIVE FEED</span>
+              <h3>CAM_01 / BORDER SECTOR A</h3>
+            </div>
+            <span class="armed">PERIMETER ARMED</span>
+          </div>
+
+          <div class="cctv">
+            <div class="cctv-scanner"></div>
+            <div class="cctv-grid"></div>
+            <div class="cctv-landscape">
+              <div class="ridge ridge-one"></div>
+              <div class="ridge ridge-two"></div>
+              <div class="tower"></div>
+              <div class="fence"></div>
+              <div class="person">
+                <span>PERSON #17</span>
+                <b>94%</b>
+              </div>
+            </div>
+
+            <div class="hud hud-top">CAM_01 &nbsp; // &nbsp; SECTOR A</div>
+            <div class="hud hud-top-right"><span class="rec"></span> REC</div>
+            <div class="hud hud-bottom">YOLO / BYTETRACK &nbsp; • &nbsp; FENCE: ARMED</div>
+          </div>
+
+          <div class="feed-foot">
+            <span>VIDEO SOURCE: CCTV / PROCESSED STREAM</span>
+            <button class="btn-small" id="playDemo">VIEW PLAYBACK →</button>
+          </div>
+        </article>
+
+        <aside class="event-card reveal" id="events">
+          <div class="event-card-head">
+            <div>
+              <span class="eyebrow">02 / EVENT LOG</span>
+              <h3>Recent activity</h3>
+            </div>
+            <span class="event-count">03</span>
+          </div>
+
+          <div class="event">
+            <time>07:16:42</time>
+            <div class="event-indicator danger"></div>
+            <div><b>PERIMETER INTRUSION</b><span>Person / Track #17 / 94%</span><small>CAM_01 • ACTIVE</small></div>
+          </div>
+          <div class="event">
+            <time>07:12:09</time>
+            <div class="event-indicator"></div>
+            <div><b>VEHICLE DETECTED</b><span>Car / Track #08 / 89%</span><small>CAM_01 • CLEARED</small></div>
+          </div>
+          <div class="event">
+            <time>07:04:31</time>
+            <div class="event-indicator"></div>
+            <div><b>PERSON DETECTED</b><span>Track #14 / 91%</span><small>CAM_01 • CLEARED</small></div>
+          </div>
+
+          <a class="view-all" href="#analytics">VIEW EVENT ANALYTICS <span>→</span></a>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ANALYTICS -->
+    <section class="section section-muted" id="analytics">
+      <div class="section-heading reveal">
+        <div>
+          <span class="eyebrow">03 / INTELLIGENCE</span>
+          <h2>From detection<br><em>to decision.</em></h2>
+        </div>
+        <p>IBVAP turns raw CCTV activity into structured events, evidence and operator-ready intelligence.</p>
+      </div>
+
+      <div class="intelligence-grid">
+        <article class="intel-card reveal">
+          <span class="intel-number">01</span>
+          <div class="intel-icon">◉</div>
+          <h3>DETECT</h3>
+          <p>YOLO identifies relevant objects in each processed CCTV frame.</p>
+        </article>
+        <article class="intel-card reveal">
+          <span class="intel-number">02</span>
+          <div class="intel-icon">⌁</div>
+          <h3>TRACK</h3>
+          <p>ByteTrack maintains object identities and Track IDs across frames.</p>
+        </article>
+        <article class="intel-card reveal">
+          <span class="intel-number">03</span>
+          <div class="intel-icon">◇</div>
+          <h3>ANALYZE</h3>
+          <p>The virtual fence checks whether tracked objects enter the restricted zone.</p>
+        </article>
+        <article class="intel-card reveal">
+          <span class="intel-number">04</span>
+          <div class="intel-icon">!</div>
+          <h3>RESPOND</h3>
+          <p>Intrusions create evidence snapshots, database records and operator alerts.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- SYSTEM -->
+    <section class="section" id="system">
+      <div class="system-panel reveal">
+        <div>
+          <span class="eyebrow">COMMAND STATUS</span>
+          <h2>Continuous monitoring.<br><em>Human decision, AI assistance.</em></h2>
+        </div>
+        <div class="health-list">
+          <div><span><i class="green-dot"></i> AI ENGINE</span><b>ONLINE</b></div>
+          <div><span><i class="green-dot"></i> DATABASE</span><b>ONLINE</b></div>
+          <div><span><i class="amber-dot"></i> CAMERA LINK</span><b>STANDBY</b></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+  <!-- PLATFORM / DEPLOYMENT -->
+  <section class="about-section" id="about">
+
+    <div class="about-inner">
+
+      <div class="about-heading reveal">
+
+        <span class="eyebrow">04 / PLATFORM</span>
+
+        <h2>
+          Intelligent Border
+          <br>
+          <em>Video Analytics Platform.</em>
+        </h2>
+
+        <p>
+          IBVAP is designed as a continuous surveillance pipeline.
+          Each stage transforms raw video into structured information
+          that can be reviewed and acted upon by an operator.
+        </p>
+
+      </div>
+
+
+      <div class="platform-flow reveal">
+
+        <div class="flow-line"></div>
+
+
+        <div class="flow-step">
+
+          <span class="flow-number">01</span>
+
+          <div class="flow-node">
+            <span>CAM</span>
+          </div>
+
+          <h3>CAPTURE</h3>
+
+          <p>
+            CCTV continuously supplies the video stream
+            from the monitored perimeter.
+          </p>
+
+        </div>
+
+
+        <div class="flow-step">
+
+          <span class="flow-number">02</span>
+
+          <div class="flow-node">
+            <span>AI</span>
+          </div>
+
+          <h3>UNDERSTAND</h3>
+
+          <p>
+            AI detects relevant objects and assigns
+            persistent tracking identities.
+          </p>
+
+        </div>
+
+
+        <div class="flow-step">
+
+          <span class="flow-number">03</span>
+
+          <div class="flow-node">
+            <span>F</span>
+          </div>
+
+          <h3>CHECK</h3>
+
+          <p>
+            Movement is evaluated against the configured
+            virtual perimeter and restricted zones.
+          </p>
+
+        </div>
+
+
+        <div class="flow-step">
+
+          <span class="flow-number">04</span>
+
+          <div class="flow-node alert-node">
+            <span>!</span>
+          </div>
+
+          <h3>ALERT</h3>
+
+          <p>
+            Confirmed events become evidence records
+            and operator-ready alerts.
+          </p>
+
+        </div>
+
+
+        <div class="flow-step">
+
+          <span class="flow-number">05</span>
+
+          <div class="flow-node">
+            <span>OP</span>
+          </div>
+
+          <h3>RESPOND</h3>
+
+          <p>
+            Operators review the event and make the
+            final operational decision.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="platform-footer reveal">
+
+        <div>
+          <span>DESIGNED FOR</span>
+          <b>PERIMETER SECURITY</b>
+        </div>
+
+        <div>
+          <span>INPUT</span>
+          <b>CCTV STREAM</b>
+        </div>
+
+        <div>
+          <span>PROCESSING</span>
+          <b>EDGE / LOCAL AI</b>
+        </div>
+
+        <div>
+          <span>OUTPUT</span>
+          <b>EVENT + EVIDENCE</b>
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+  </main>
+
+  <footer class="site-footer" id="footer">
+    <div class="footer-inner">
+      <div class="footer-links reveal">
+        <!-- PROJECT -->
+        <div class="footer-column">
+          <span class="footer-label">PROJECT</span>
+          <a href="https://github.com/puneethayer/sih-border-surveillance" target="_blank" rel="noopener noreferrer">GITHUB REPOSITORY ↗</a>
+          <!-- Replace YOUR_PPT_URL with the final presentation link -->
+          <a href="YOUR_PPT_URL" target="_blank" rel="noopener noreferrer">PROJECT PRESENTATION ↗</a>
+        </div>
+
+        <!-- LINKEDIN -->
+        <div class="footer-column">
+          <span class="footer-label">LINKEDIN</span>
+          <a href="https://www.linkedin.com/in/puneet-hayer-b9a113395/" target="_blank" rel="noopener noreferrer">PUNEET HAYER ↗</a>
+          <a href="https://www.linkedin.com/in/shriyam-sharma-077a32326/" target="_blank" rel="noopener noreferrer">SHRIYAM SHARMA ↗</a>
+          <a href="https://www.linkedin.com/in/aishikidas/" target="_blank" rel="noopener noreferrer">AISHIKI DAS ↗</a>
+          <a href="https://www.linkedin.com/in/fagun-manna-387681371/" target="_blank" rel="noopener noreferrer">FAGUN MANNA ↗</a>
+          <a href="https://www.linkedin.com/in/swastika-singh-045898248/" target="_blank" rel="noopener noreferrer">SWASTIKA SINGH ↗</a>
+          <a href="https://www.linkedin.com/in/ayan-roy-73480b3ba/" target="_blank" rel="noopener noreferrer">AYAN ROY ↗</a>
+        </div>
+
+        <!-- GITHUB -->
+        <div class="footer-column">
+          <span class="footer-label">GITHUB</span>
+          <a href="https://github.com/puneethayer" target="_blank" rel="noopener noreferrer">PUNEET HAYER ↗</a>
+          <a href="https://github.com/Shriyam971" target="_blank" rel="noopener noreferrer">SHRIYAM SHARMA ↗</a>
+          <a href="https://github.com/aishiki2007" target="_blank" rel="noopener noreferrer">AISHIKI DAS ↗</a>
+          <a href="https://github.com/fagun-manna" target="_blank" rel="noopener noreferrer">FAGUN MANNA ↗</a>
+          <a href="https://github.com/Swastika295" target="_blank" rel="noopener noreferrer">SWASTIKA SINGH ↗</a>
+          <a href="https://github.com/AyanRoy669" target="_blank" rel="noopener noreferrer">AYAN ROY ↗</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast">Command acknowledged</div>
+  <script src="script.js" defer></script>
+</body>
+</html>

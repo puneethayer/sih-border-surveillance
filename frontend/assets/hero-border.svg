@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1000" preserveAspectRatio="xMidYMid slice">
+<defs>
+  <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#101f18"/><stop offset=".55" stop-color="#172b21"/><stop offset="1" stop-color="#07100c"/></linearGradient>
+  <linearGradient id="ground" x2="0" y2="1"><stop stop-color="#1a2b20"/><stop offset="1" stop-color="#07100c"/></linearGradient>
+  <radialGradient id="sun"><stop stop-color="#d4e59d" stop-opacity=".24"/><stop offset="1" stop-color="#d4e59d" stop-opacity="0"/></radialGradient>
+  <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse"><path d="M80 0H0V80" fill="none" stroke="#bfd58e" stroke-opacity=".06"/></pattern>
+</defs>
+<rect width="1800" height="1000" fill="url(#sky)"/>
+<circle cx="1330" cy="240" r="300" fill="url(#sun)"/>
+<rect width="1800" height="1000" fill="url(#grid)"/>
+<path d="M0 590L250 370 420 505 680 260 890 505 1120 300 1350 530 1550 390 1800 570V1000H0Z" fill="#0a1711"/>
+<path d="M0 710L270 535 470 650 690 475 880 640 1110 480 1320 650 1510 525 1800 675V1000H0Z" fill="url(#ground)"/>
+<g opacity=".78">
+ <path d="M0 735C420 690 730 760 1060 720S1510 690 1800 725" stroke="#9db879" stroke-opacity=".34" fill="none" stroke-width="3" stroke-dasharray="12 13"/>
+ <path d="M0 755C420 710 730 780 1060 740S1510 710 1800 745" stroke="#9db879" stroke-opacity=".14" fill="none"/>
+</g>
+<g fill="#101c15" stroke="#73896d" stroke-opacity=".28">
+ <rect x="1300" y="455" width="14" height="280"/><rect x="1400" y="455" width="14" height="280"/>
+ <rect x="1260" y="425" width="195" height="38" rx="2"/>
+ <path d="M1285 425v-76h145v76z"/>
+ <path d="M1298 349h120" stroke="#bfd58e" stroke-opacity=".18"/>
+</g>
+<g fill="#bfd58e" fill-opacity=".10" font-family="monospace" letter-spacing="5">
+ <text x="70" y="900" font-size="18">IBVAP // BORDER SECTOR A // SURVEILLANCE GRID</text>
+</g>
+</svg>

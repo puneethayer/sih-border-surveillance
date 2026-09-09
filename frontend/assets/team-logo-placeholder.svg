@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<path d="M50 4L91 20v28c0 25-16 39-41 48C25 87 9 73 9 48V20z" fill="#0b1712" stroke="#bfd58e" stroke-width="3"/>
+<path d="M29 61L50 22l21 39H60l-5-10H45l-5 10zM50 39l-4 8h8z" fill="#bfd58e"/>
+<text x="50" y="76" fill="#dce7d7" font-family="Arial" font-size="9" font-weight="700" text-anchor="middle">TEAM</text>
+</svg>
