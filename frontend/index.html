@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#07100d">
   <meta name="description" content="IBVAP — Intelligent Border Virtual AI Protection">
   <title>IBVAP | Intelligent Border Virtual AI Protection</title>
-  <link rel="preload" href="assets/hero-border.png" as="image" type="image/png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="preload" href="/frontend/assets/hero-border.png" as="image" type="image/png">
+  <link rel="stylesheet" href="/frontend/style.css">
 </head>
 
 <body>
@@ -89,10 +89,10 @@
 
     <!-- SIMPLE STATUS STRIP -->
     <section class="status-strip reveal">
-      <div><span>01</span><b>ACTIVE CAMERA</b><small>CAM_01 / SECTOR A</small></div>
-      <div><span>03</span><b>ACTIVE INTRUSIONS</b><small class="danger">IMMEDIATE REVIEW</small></div>
-      <div><span>128</span><b>AI EVENTS</b><small>LAST 24 HOURS</small></div>
-      <div><span>94%</span><b>AI CONFIDENCE</b><small class="green">STABLE INFERENCE</small></div>
+      <div><span id="statCamera">01</span><b>ACTIVE CAMERA</b><small>CAM_01 / SECTOR A</small></div>
+      <div><span id="statIntrusions">00</span><b>ACTIVE INTRUSIONS</b><small class="danger">IMMEDIATE REVIEW</small></div>
+      <div><span id="statEvents">00</span><b>AI EVENTS</b><small>LAST 24 HOURS</small></div>
+      <div><span id="statConfidence">--</span><b>AI CONFIDENCE</b><small class="green">STABLE INFERENCE</small></div>
     </section>
 
     <!-- SURVEILLANCE -->
@@ -110,34 +110,131 @@
           <div class="feed-head">
             <div>
               <span class="live"><i></i> LIVE FEED</span>
-              <h3>CAM_01 / BORDER SECTOR A</h3>
+              <h3 id="cameraTitle">CAM_01 / BORDER SECTOR A</h3>
             </div>
             <span class="armed">PERIMETER ARMED</span>
           </div>
 
-          <div class="cctv">
-            <div class="cctv-scanner"></div>
-            <div class="cctv-grid"></div>
-            <div class="cctv-landscape">
-              <div class="ridge ridge-one"></div>
-              <div class="ridge ridge-two"></div>
-              <div class="tower"></div>
-              <div class="fence"></div>
-              <div class="person">
-                <span>PERSON #17</span>
-                <b>94%</b>
+          <!-- VIDEO CAROUSEL -->
+          <div class="video-carousel">
+            <button class="carousel-arrow carousel-prev" id="videoPrev" aria-label="Previous video">
+              ←
+            </button>
+            <div class="video-track" id="videoTrack">
+
+              <!-- VIDEO 1 -->
+              <div class="video-slide active" data-camera="CAM_01 / BORDER SECTOR A">
+                <div class="cctv live-cctv">
+                  <video
+                    class="surveillance-video"
+                    src="/api/video/cctv.mp4"
+                    muted
+                    autoplay
+                    loop
+                    playsinline
+                  ></video>
+                  <div class="cctv-grid"></div>
+                  <div class="hud hud-top">
+                    CAM_01 &nbsp; // &nbsp; SECTOR A
+                  </div>
+                  <div class="hud hud-top-right">
+                    <span class="rec"></span> REC
+                  </div>
+                  <div class="hud hud-bottom">
+                    CCTV / RAW STREAM
+                  </div>
+                </div>
               </div>
+
+              <!-- VIDEO 2 -->
+              <div class="video-slide" data-camera="CAM_02 / PROCESSED INTRUSION">
+                <div class="cctv live-cctv">
+
+                  <video
+                    class="surveillance-video"
+                    src="/api/video/intrusion_result.mp4"
+                    muted
+                    autoplay
+                    loop
+                    playsinline
+                  ></video>
+
+                  <div class="cctv-grid"></div>
+
+                  <div class="hud hud-top">
+                    CAM_02 &nbsp; // &nbsp; AI PROCESSED
+                  </div>
+
+                  <div class="hud hud-top-right">
+                    <span class="rec"></span> AI
+                  </div>
+
+                  <div class="hud hud-bottom">
+                    YOLO / BYTETRACK &nbsp; • &nbsp; INTRUSION ANALYSIS
+                  </div>
+
+                </div>
+              </div>
+
             </div>
 
-            <div class="hud hud-top">CAM_01 &nbsp; // &nbsp; SECTOR A</div>
-            <div class="hud hud-top-right"><span class="rec"></span> REC</div>
-            <div class="hud hud-bottom">YOLO / BYTETRACK &nbsp; • &nbsp; FENCE: ARMED</div>
+            <button class="carousel-arrow carousel-next" id="videoNext" aria-label="Next video">
+              →
+            </button>
+
+          </div>
+
+          <!-- CAROUSEL CONTROLS -->
+          <div class="carousel-controls">
+
+            <div class="carousel-dots" id="videoDots">
+              <button class="carousel-dot active" data-slide="0"></button>
+              <button class="carousel-dot" data-slide="1"></button>
+            </div>
+
+            <span class="carousel-counter" id="videoCounter">
+              01 / 02
+            </span>
+
+          </div>
+
+          <!-- FENCE CONTROLS -->
+          <div class="fence-toolbar">
+
+            <div>
+              <span class="fence-hint" id="fenceHint">
+                CLICK 3–4 POINTS ON THE FRAME TO DEFINE THE RESTRICTED ZONE
+              </span>
+
+              <span class="fence-coordinates" id="fenceCoordinates"></span>
+            </div>
+
+            <div class="fence-actions">
+              <button class="btn-small" id="undoFence">UNDO</button>
+              <button class="btn-small" id="resetFence">RESET</button>
+              <button class="btn-small btn-live" id="runDetection">
+                RUN AI DETECTION →
+              </button>
+            </div>
+
           </div>
 
           <div class="feed-foot">
-            <span>VIDEO SOURCE: CCTV / PROCESSED STREAM</span>
-            <button class="btn-small" id="playDemo">VIEW PLAYBACK →</button>
+            <span id="feedMeta">
+              VIDEO SOURCE: CCTV / CAM_01
+            </span>
+
+            <a
+              class="btn-small"
+              id="playDemo"
+              href="/api/output-video"
+              target="_blank"
+              rel="noopener"
+            >
+              VIEW PROCESSED VIDEO →
+            </a>
           </div>
+
         </article>
 
         <aside class="event-card reveal" id="events">
@@ -146,22 +243,15 @@
               <span class="eyebrow">02 / EVENT LOG</span>
               <h3>Recent activity</h3>
             </div>
-            <span class="event-count">03</span>
+            <span class="event-count" id="eventCount">00</span>
           </div>
-
-          <div class="event">
-            <time>07:16:42</time>
-            <div class="event-indicator danger"></div>
-            <div><b>PERIMETER INTRUSION</b><span>Person / Track #17 / 94%</span><small>CAM_01 • ACTIVE</small></div>
+          <div id="eventList">
+            <div class="event event-empty">
+              <time>--:--:--</time>
+              <div class="event-indicator"></div>
+              <div><b>WAITING FOR EVENTS</b><span>Run AI detection to populate the live event stream.</span><small>CAM_01 • STANDBY</small></div>
+            </div>
           </div>
-          <div class="event">
-            <time>07:12:09</time>
-            <div class="event-indicator"></div>
-            <div><b>VEHICLE DETECTED</b><span>Car / Track #08 / 89%</span><small>CAM_01 • CLEARED</small></div>
-          </div>
-          <div class="event">
-            <time>07:04:31</time>
-            <div class="event-indicator"></div>
             <div><b>PERSON DETECTED</b><span>Track #14 / 91%</span><small>CAM_01 • CLEARED</small></div>
           </div>
 
@@ -216,9 +306,9 @@
           <h2>Continuous monitoring.<br><em>Human decision, AI assistance.</em></h2>
         </div>
         <div class="health-list">
-          <div><span><i class="green-dot"></i> AI ENGINE</span><b>ONLINE</b></div>
-          <div><span><i class="green-dot"></i> DATABASE</span><b>ONLINE</b></div>
-          <div><span><i class="amber-dot"></i> CAMERA LINK</span><b>STANDBY</b></div>
+          <div><span><i class="green-dot"></i> AI ENGINE</span><b id="healthAI">ONLINE</b></div>
+          <div><span><i class="green-dot"></i> DATABASE</span><b id="healthDB">ONLINE</b></div>
+          <div><span><i class="amber-dot"></i> CAMERA LINK</span><b id="healthCamera">STANDBY</b></div>
         </div>
       </div>
     </section>
@@ -411,6 +501,6 @@
   </footer>
 
   <div class="toast" id="toast">Command acknowledged</div>
-  <script src="script.js" defer></script>
+  <script src="/frontend/script.js" defer></script>
 </body>
 </html>
