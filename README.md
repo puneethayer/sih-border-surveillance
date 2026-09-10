@@ -1,904 +1,800 @@
-# 🛡️ IBVAP — Intelligent Border Virtual AI Protection
+# 🛡️ IBVAP — Intelligent Border Video Analytics Platform
 
-### AI-Powered CCTV Intrusion Detection & Virtual Perimeter Surveillance System
+### AI-Based Intelligent Video Analytics Platform for Border Surveillance Using Existing CCTV Infrastructure
 
-IBVAP (**Intelligent Border Virtual AI Protection**) is an AI-assisted CCTV surveillance prototype designed for **border security, Border Out Posts (BOPs), check posts, border roads, restricted areas, and other sensitive locations**.
+IBVAP (**Intelligent Border Video Analytics Platform**) is an AI-powered video surveillance prototype designed to transform existing CCTV infrastructure into an intelligent surveillance system.
 
-The system uses **YOLO-based object detection and tracking** together with a user-defined **virtual fence/perimeter** to identify when detected objects enter a restricted area.
+The platform uses **Artificial Intelligence, Computer Vision, Object Detection, Tracking, and Video Analytics** to analyze CCTV video streams and identify potential security threats in real time.
 
-When an intrusion is detected, IBVAP records the event, captures an evidence snapshot, stores the event in SQLite, maintains a CSV log, and displays the results through a browser-based surveillance dashboard.
-
----
-
-# 📌 Problem Statement
-
-Border security locations require continuous monitoring of CCTV feeds. Manual monitoring of multiple cameras for long periods is:
-
-* Fatigue-prone
-* Difficult to scale
-* Time-consuming
-* Dependent on constant human attention
-* Vulnerable to missed intrusion events
-
-IBVAP provides an **AI-assisted first layer of surveillance** that automatically analyzes CCTV footage and identifies potential intrusions into predefined restricted zones.
-
-The system is intended to assist human security personnel rather than completely replace them.
+IBVAP is designed to work with **existing CCTV infrastructure**, reducing the need for expensive dedicated surveillance hardware.
 
 ---
 
-# 🎯 Objectives
+## 📌 Problem Statement
 
-The main objectives of IBVAP are:
+Border security forces deploy CCTV cameras at:
 
-* Automate the first level of CCTV monitoring.
-* Detect relevant objects in surveillance footage.
-* Track detected objects across video frames.
-* Define restricted areas using a virtual fence.
-* Detect when an object enters the restricted zone.
-* Generate intrusion events.
-* Capture visual evidence of detected intrusions.
-* Store intrusion information in a database.
-* Maintain a CSV event log.
-* Display surveillance results through a web-based dashboard.
-* Provide event history and analytics for monitoring.
+* Border Out Posts (BOPs)
+* Check posts
+* Border roads
+* Restricted areas
+* Strategic installations
+
+Conventional CCTV systems primarily provide video recording and live monitoring, requiring security personnel to continuously observe multiple camera feeds.
+
+Advanced surveillance capabilities such as:
+
+* Human detection and tracking
+* Vehicle detection and classification
+* Face detection
+* Automatic Number Plate Recognition (ANPR)
+* Intrusion detection
+* Suspicious activity detection
+* Night-time movement detection
+* Real-time alerts
+
+often require specialized hardware or proprietary systems.
+
+This makes large-scale deployment expensive and difficult, particularly in remote border locations.
 
 ---
 
-# 🧠 Core Concept
+# 💡 Proposed Solution
 
-The fundamental workflow of IBVAP is:
+IBVAP provides a **software-based AI surveillance platform** that enhances existing CCTV infrastructure using Artificial Intelligence and Computer Vision.
+
+The system receives video from a CCTV camera and detects objects such as **Humans and Vehicles**.
+
+A user can draw a **virtual intrusion/restricted area** on the CCTV video.
+
+The core threat-detection rule is:
+
+> **If a detected Human or Vehicle enters the drawn intrusion area, the system identifies the event as a potential THREAT and generates an alert.**
+
+Objects outside the intrusion area are treated as normal detections and do not generate an intrusion threat alert.
+
+---
+
+# 🚀 Key Features
+
+## 👤 Human Detection
+
+The system detects humans appearing in the CCTV video feed.
+
+Human detections are displayed simply as:
 
 ```text
-                 CCTV / VIDEO INPUT
+Human
+```
+
+The system does **not assign individual IDs** such as:
+
+```text
+Person 1
+Person 2
+Person 3
+```
+
+The focus is on detecting human presence and determining whether the human enters a restricted area.
+
+---
+
+## 🚗 Vehicle Detection and Classification
+
+The system detects vehicles appearing in the CCTV footage.
+
+Depending on the AI model, supported vehicle classes may include:
+
+* Car
+* Motorcycle
+* Bus
+* Truck
+* Other supported vehicle classes
+
+Vehicles are also checked against the defined intrusion area.
+
+If a vehicle enters the restricted area, it is classified as a potential threat.
+
+Example:
+
+```text
+Vehicle detected
+Vehicle entered intrusion area
+⚠️ THREAT: Vehicle Intrusion
+```
+
+---
+
+# 🚧 Virtual Intrusion Area
+
+IBVAP allows the user to **draw a restricted/intrusion area directly on the CCTV video**.
+
+This area represents a location that should not be entered by unauthorized humans or vehicles.
+
+### Example
+
+```text
+┌─────────────────────────────────────┐
+│                                     │
+│         CCTV VIDEO                  │
+│                                     │
+│      ┌──────────────────────┐       │
+│      │   RESTRICTED AREA    │       │
+│      │                      │       │
+│      │   👤 Human           │       │
+│      │                      │       │
+│      │   🚗 Vehicle         │       │
+│      └──────────────────────┘       │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+If a detected object enters this area, the system generates a threat alert.
+
+---
+
+# ⚠️ Threat Detection Logic
+
+The main threat-detection logic of IBVAP is based on the object's position relative to the user-defined intrusion area.
+
+```text
+              CCTV VIDEO
+                   │
+                   ▼
+            AI Object Detection
+                   │
+           ┌───────┴───────┐
+           ▼               ▼
+        👤 Human        🚗 Vehicle
+           │               │
+           └───────┬───────┘
+                   ▼
+          Check Object Position
+                   │
+                   ▼
+       Is it inside the drawn
+          intrusion area?
+             /          \
+           YES           NO
+            │             │
+            ▼             ▼
+       ⚠️ THREAT       Normal
+         ALERT         Detection
+            │
+            ▼
+      Event Logging
+            │
+            ▼
+      Dashboard Alert
+```
+
+---
+
+# 🚨 Threat Examples
+
+### Human enters intrusion area
+
+```text
+👤 Human detected
+📍 Intrusion area entered
+
+⚠️ THREAT: Human entered restricted area
+```
+
+### Vehicle enters intrusion area
+
+```text
+🚗 Vehicle detected
+📍 Intrusion area entered
+
+⚠️ THREAT: Vehicle entered restricted area
+```
+
+### Human outside intrusion area
+
+```text
+👤 Human detected
+
+Status: Normal
+```
+
+### Vehicle outside intrusion area
+
+```text
+🚗 Vehicle detected
+
+Status: Normal
+```
+
+---
+
+# 🎯 Core System Rule
+
+IBVAP follows a simple rule:
+
+```text
+IF Human enters intrusion area
+        ↓
+     THREAT
+
+IF Vehicle enters intrusion area
+        ↓
+     THREAT
+
+IF Human stays outside intrusion area
+        ↓
+     NORMAL
+
+IF Vehicle stays outside intrusion area
+        ↓
+     NORMAL
+```
+
+This makes the system focused on **location-based security threats** rather than simply detecting objects.
+
+---
+
+# 🧠 Human Tracking
+
+The system can track detected humans across consecutive video frames to understand their movement.
+
+However, IBVAP does **not display individual person IDs**.
+
+Instead of:
+
+```text
+Person 1
+Person 2
+Person 3
+```
+
+the system represents detections as:
+
+```text
+Human
+```
+
+The important information is whether the detected human is inside or outside the restricted area.
+
+---
+
+# 🚗 Vehicle Tracking
+
+Detected vehicles can also be tracked across consecutive frames.
+
+The system checks their movement relative to the intrusion area.
+
+If a vehicle crosses into the restricted zone:
+
+```text
+Vehicle
+     ↓
+Enters Intrusion Area
+     ↓
+⚠️ THREAT
+     ↓
+Alert + Event Log
+```
+
+---
+
+# 🚨 Real-Time Alert Generation
+
+When a Human or Vehicle enters the intrusion area, the system generates a real-time alert.
+
+Example:
+
+```text
+┌──────────────────────────────────────┐
+│          🚨 SECURITY ALERT           │
+├──────────────────────────────────────┤
+│ ⚠️ Human entered intrusion area      │
+│ Time: 10:32:15                       │
+└──────────────────────────────────────┘
+```
+
+or:
+
+```text
+┌──────────────────────────────────────┐
+│          🚨 SECURITY ALERT           │
+├──────────────────────────────────────┤
+│ ⚠️ Vehicle entered intrusion area    │
+│ Time: 10:35:42                       │
+└──────────────────────────────────────┘
+```
+
+---
+
+# 📝 Event Logging
+
+Threat events can be stored in an SQLite database.
+
+The system can record:
+
+| Field     | Description                 |
+| --------- | --------------------------- |
+| Date      | Date of event               |
+| Time      | Time of event               |
+| Detection | Human / Vehicle             |
+| Event     | Intrusion                   |
+| Zone      | User-defined intrusion area |
+| Status    | Threat                      |
+
+Example:
+
+| Time     | Detection | Event     | Status    |
+| -------- | --------- | --------- | --------- |
+| 10:32:15 | Human     | Intrusion | ⚠️ Threat |
+| 10:35:42 | Vehicle   | Intrusion | ⚠️ Threat |
+
+---
+
+# 🖥️ Dashboard
+
+IBVAP uses a **Streamlit-based dashboard** for centralized surveillance monitoring.
+
+The dashboard can display:
+
+* 📹 Live CCTV feed
+* 👤 Human detections
+* 🚗 Vehicle detections
+* 🚧 Drawn intrusion area
+* ⚠️ Threat alerts
+* 📝 Event logs
+* 📊 Detection information
+* 🌙 Night monitoring status
+
+### Dashboard Concept
+
+```text
+┌───────────────────────────────────────────────────────────┐
+│              🛡️ IBVAP SURVEILLANCE DASHBOARD              │
+├────────────────────────────────┬──────────────────────────┤
+│                                │                          │
+│        📹 CCTV VIDEO           │      🚨 ALERTS           │
+│                                │                          │
+│    ┌──────────────────────┐    │ ⚠️ Human - Threat       │
+│    │                      │    │ ⚠️ Vehicle - Threat     │
+│    │   👤 Human           │    │                          │
+│    │                      │    │                          │
+│    │   🚧 Restricted      │    │                          │
+│    │      Area            │    │                          │
+│    │                      │    │                          │
+│    └──────────────────────┘    │                          │
+│                                │                          │
+├────────────────────────────────┴──────────────────────────┤
+│                     📝 EVENT LOGS                          │
+├──────────┬────────────┬──────────────┬─────────────────────┤
+│ Time     │ Detection  │ Event        │ Status              │
+├──────────┼────────────┼──────────────┼─────────────────────┤
+│ 10:32:15 │ Human      │ Intrusion    │ ⚠️ Threat            │
+│ 10:35:42 │ Vehicle    │ Intrusion    │ ⚠️ Threat            │
+└──────────┴────────────┴──────────────┴─────────────────────┘
+```
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                 EXISTING CCTV CAMERA
                          │
                          ▼
-              ┌─────────────────────┐
-              │   OpenCV Processing │
-              └──────────┬──────────┘
+                ┌──────────────────┐
+                │   IP VIDEO FEED  │
+                └────────┬─────────┘
                          │
                          ▼
-              ┌─────────────────────┐
-              │   YOLO Detection    │
-              │     + Tracking      │
-              └──────────┬──────────┘
+                ┌──────────────────┐
+                │      OpenCV      │
+                │  Frame Processing│
+                └────────┬─────────┘
                          │
                          ▼
-              ┌─────────────────────┐
-              │   Virtual Fence     │
-              │   / Restricted Zone │
-              └──────────┬──────────┘
+                ┌──────────────────┐
+                │    YOLO MODEL    │
+                │  Object Detection│
+                └────────┬─────────┘
+                         │
+                ┌────────┴─────────┐
+                │                  │
+                ▼                  ▼
+             👤 Human           🚗 Vehicle
+             Detection          Detection
+                │                  │
+                └────────┬─────────┘
+                         ▼
+                ┌──────────────────┐
+                │ Drawn Intrusion  │
+                │      Area        │
+                └────────┬─────────┘
                          │
                          ▼
-                 Object in Zone?
+                Object inside area?
                     /          \
                   YES           NO
                    │             │
                    ▼             ▼
-            INTRUSION EVENT    Continue
-                   │
-          ┌────────┼───────────┐
-          ▼        ▼           ▼
-       Snapshot  SQLite       CSV
-          │        │           │
-          └────────┼───────────┘
+             ⚠️ THREAT        NORMAL
+                ALERT        DETECTION
                    │
                    ▼
-            Streamlit Dashboard
-                   │
-          ┌────────┼──────────┐
-          ▼        ▼          ▼
-      Live View  Event Log  Analytics
+             ┌──────────────┐
+             │ Event Logger │
+             └──────┬───────┘
+                    │
+                    ▼
+             ┌──────────────┐
+             │    SQLite    │
+             │   Database   │
+             └──────┬───────┘
+                    │
+                    ▼
+             ┌──────────────┐
+             │  Streamlit   │
+             │  Dashboard   │
+             └──────────────┘
 ```
 
 ---
 
-# 🚀 Features Implemented
+# 🔄 Working Process
 
-## 1. AI-Based Object Detection
+### Step 1 — CCTV Input
 
-IBVAP uses the **Ultralytics YOLO** framework for object detection.
+The system receives a live video stream from an existing CCTV camera.
 
-The current detection configuration focuses on relevant COCO classes:
+### Step 2 — Frame Capture
 
-| Class ID | Object |
-| -------: | ------ |
-|        0 | Person |
-|        2 | Car    |
-|        5 | Bus    |
-|        7 | Truck  |
+OpenCV captures frames from the CCTV stream.
 
-The detection engine loads the YOLO model and processes the CCTV video frame-by-frame.
+### Step 3 — AI Object Detection
 
----
+The YOLO-based model detects objects such as humans and vehicles.
 
-## 2. Object Tracking
+### Step 4 — Draw Intrusion Area
 
-The system uses YOLO tracking with:
+The user defines a restricted area by drawing a virtual boundary on the video.
+
+### Step 5 — Position Analysis
+
+The system checks the position of every detected Human and Vehicle.
+
+### Step 6 — Intrusion Check
+
+The system determines whether the detected object has entered the defined intrusion area.
+
+### Step 7 — Threat Identification
+
+If the detected object is inside the intrusion area:
 
 ```text
-ByteTrack
+Human → Threat
+Vehicle → Threat
 ```
 
-Tracking allows objects to maintain a **Track ID** across frames.
+### Step 8 — Alert Generation
 
-This makes it possible to determine whether the same detected object is entering or remaining within the restricted area instead of treating every frame as a completely new detection.
+A real-time threat alert is displayed on the dashboard.
 
----
+### Step 9 — Event Logging
 
-## 3. Virtual Fence / Restricted Zone
-
-The operator can define a restricted area directly on the CCTV frame.
-
-The virtual fence is represented as a polygon using selected `(x, y)` points.
-
-At least **three points** are required to create a valid fence.
-
-The interface displays the selected points and visually draws the virtual perimeter over the CCTV image.
+The threat event is stored in the database for future reference.
 
 ---
 
-## 4. Intrusion Detection
+# 🧠 Technologies Used
 
-The system checks tracked objects against the virtual fence.
-
-When an object satisfies the intrusion condition, IBVAP:
-
-* Identifies the object
-* Records its Track ID
-* Records its category
-* Records confidence
-* Records its position/centroid
-* Generates an intrusion event
-* Captures a snapshot
-* Stores the event in SQLite
-* Adds the event to the CSV log
-
-The detection engine also maintains active intrusion tracking to avoid treating every frame as a separate active intrusion.
+| Technology             | Purpose                             |
+| ---------------------- | ----------------------------------- |
+| **Python**             | Main programming language           |
+| **OpenCV**             | Video and image processing          |
+| **YOLO / Ultralytics** | AI object detection                 |
+| **Streamlit**          | Web-based dashboard                 |
+| **SQLite**             | Event and alert storage             |
+| **EasyOCR**            | Number plate/text recognition       |
+| **NumPy**              | Numerical and image-data processing |
 
 ---
 
-# 📸 Evidence Capture
-
-When an intrusion occurs, IBVAP captures a snapshot of the relevant frame.
-
-The snapshot is stored inside:
-
-```text
-logs/
-└── snapshots/
-```
-
-The snapshot path is associated with the corresponding database event so that the dashboard can retrieve and display the evidence.
-
-The dashboard can display the captured intrusion snapshot with the caption:
-
-```text
-Captured intrusion snapshot
-```
-
----
-
-# 🗄️ Database
-
-IBVAP uses:
-
-```text
-SQLite
-```
-
-for local event storage.
-
-The database is located at:
-
-```text
-database/ibvap.db
-```
-
-The event system stores information including:
-
-* Event ID
-* Timestamp
-* Camera ID
-* Object type
-* Track ID
-* Event type
-* Confidence
-* Snapshot path
-* Plate number field where applicable
-
-The Streamlit application retrieves events from the `events` table and displays them in the dashboard.
-
----
-
-# 📄 CSV Event Logging
-
-In addition to SQLite, IBVAP maintains a CSV event log.
-
-The CSV contains fields including:
-
-```text
-Date
-Time
-Object ID
-Category
-Event
-Confidence
-Centroid X
-Centroid Y
-Snapshot
-```
-
-This provides a simple portable record of intrusion events for inspection and reporting.
-
----
-
-# 🎥 Processed CCTV Output
-
-The detection engine processes the input CCTV video and creates an annotated output video.
-
-The output can contain:
-
-* YOLO detections
-* Object tracking
-* Virtual fence
-* Intrusion indication
-* Active intruder count
-* Frame number
-* Intrusion event count
-* IBVAP identification
-
-The processed video is saved as:
-
-```text
-intrusion_result.mp4
-```
-
-The Streamlit dashboard can then display the processed CCTV video directly in the browser.
-
----
-
-# 🖥️ Command Center Dashboard
-
-IBVAP includes a browser-based **Streamlit Command Center**.
-
-The dashboard is designed as the main operator interface.
-
-The current interface includes:
-
-### 📹 Surveillance
-
-Used for:
-
-* CCTV selection
-* Video viewing
-* Virtual fence setup
-* Starting AI detection
-* Viewing processed CCTV footage
-
-The current implementation includes a primary camera:
-
-```text
-CCTV-01
-CAM_01
-```
-
----
-
-### 🚨 Event Log
-
-Displays previously recorded detection/intrusion events from the SQLite database.
-
-Event information can include:
-
-* Time
-* Camera
-* Object
-* Track ID
-* Confidence
-* Event type
-* Snapshot/evidence
-
----
-
-### 📊 Analytics
-
-The dashboard provides surveillance analytics based on recorded events.
-
-Current analytics include:
-
-* Events by type
-* Objects detected
-* Events by camera
-* Intrusion summary
-
-The dashboard generates charts from the stored event data.
-
----
-
-# 📊 Dashboard Metrics
-
-The Command Center displays high-level system metrics such as:
-
-```text
-SYSTEM STATUS
-ACTIVE INTRUSIONS
-AI EVENTS
-CAMERAS
-```
-
-The dashboard also displays database connection status and the latest recorded event.
-
----
-
-# 🎨 User Interface
-
-The frontend is built using **Streamlit** with custom CSS styling.
-
-The interface includes:
-
-* IBVAP Command Center branding
-* System status indicator
-* Surveillance dashboard
-* Event log
-* Analytics
-* CCTV cards
-* Intrusion alerts
-* Evidence snapshots
-* Processed CCTV playback
-* Metrics and charts
-
-## The current design uses a dark surveillance/command-center visual style.
-
-# 🧰 Technology Stack
-
-## AI / Computer Vision
-
-* **Python**
-* **Ultralytics YOLO**
-* **OpenCV**
-* **ByteTrack**
-* **NumPy**
-
-## Frontend / Dashboard
-
-* **Streamlit**
-* **Pandas**
-* **Pillow**
-* **streamlit-image-coordinates**
-* Custom CSS
-
-The current frontend uses `streamlit-image-coordinates` for browser-based coordinate selection rather than `streamlit-drawable-canvas`.
-
-## Database
-
-* **SQLite**
-
-## Logging
-
-* SQLite event database
-* CSV event log
-* Evidence snapshots
-
----
-
-# 📁 Current Project Components
-
-The project contains/uses components conceptually organized around:
+# 📁 Project Structure
 
 ```text
 IBVAP/
 │
-├── app.py / Streamlit application
+├── app.py
 │
-├── intrusion.py
-│       └── AI detection + tracking + intrusion engine
+├── models/
+│   └── yolov_model.pt
+│
+├── detection/
+│   ├── human_detection.py
+│   ├── vehicle_detection.py
+│   └── tracking.py
+│
+├── intrusion/
+│   └── virtual_fence.py
+│
+├── alerts/
+│   └── alert_manager.py
 │
 ├── database/
-│       └── ibvap.db
+│   └── database.py
 │
-├── logs/
-│   ├── intrusion_log.csv
-│   └── snapshots/
+├── anpr/
+│   └── number_plate.py
 │
-├── cctv.mp4
+├── utils/
+│   └── video_utils.py
 │
-├── yolo26n.pt
-│
-├── intrusion_result.mp4
+├── requirements.txt
 │
 └── README.md
 ```
 
-> File names may differ depending on the current GitHub version. The repository's actual structure should be treated as the source of truth.
-
----
-
-# 🔄 Current End-to-End Workflow
-
-The current prototype is designed around this workflow:
-
-### Step 1 — Select CCTV
-
-The operator selects the CCTV feed.
-
-### Step 2 — View CCTV
-
-The system obtains the CCTV/video frame.
-
-### Step 3 — Define Virtual Fence
-
-The operator clicks points on the CCTV frame to define the restricted area.
-
-### Step 4 — Start AI Detection
-
-The application calls the detection engine with:
-
-```text
-Video Path
-Fence Points
-Output Path
-Camera ID
-```
-
-The frontend passes the selected fence points directly to the detection function.
-
-### Step 5 — YOLO Processing
-
-The detection engine:
-
-```text
-Loads YOLO
-      ↓
-Opens CCTV video
-      ↓
-Processes frames
-      ↓
-Detects objects
-      ↓
-Tracks objects with ByteTrack
-```
-
-### Step 6 — Virtual Fence Analysis
-
-Detected objects are evaluated against the user-defined virtual perimeter.
-
-### Step 7 — Intrusion Event
-
-If the intrusion condition is satisfied:
-
-```text
-Intrusion Detected
-       ↓
-Snapshot Captured
-       ↓
-SQLite Event
-       ↓
-CSV Log
-       ↓
-Event returned to frontend
-```
-
-### Step 8 — Results
-
-The dashboard displays:
-
-* Processed video
-* Number of frames processed
-* Number of intrusion events
-* Detected objects
-* Track IDs
-* Confidence
-* Centroid
-* Snapshot information
-* Database events
-
----
-
-# 🧩 Current Architecture
-
-```text
-┌─────────────────────┐
-│    CCTV / Video     │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│       OpenCV        │
-│   Video Processing  │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│     YOLO Model      │
-│ Detection + Tracking│
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│    ByteTrack        │
-│   Object Tracking   │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   Virtual Fence     │
-│ Intrusion Analysis  │
-└──────────┬──────────┘
-           │
-           ▼
-      ┌────┴────┐
-      │         │
-      ▼         ▼
-  Snapshot   Event Data
-      │         │
-      │     ┌───┴────┐
-      │     │ SQLite │
-      │     └───┬────┘
-      │         │
-      ▼         ▼
-   Evidence   CSV Log
-      │         │
-      └────┬────┘
-           │
-           ▼
-┌─────────────────────┐
-│  Streamlit Command  │
-│       Center        │
-└─────────────────────┘
-```
-
----
-
-# 👥 Team Development
-
-IBVAP is intended to be maintained as a shared GitHub project.
-
-Recommended workflow:
-
-```text
-main
- │
- ├── frontend
- ├── backend
- ├── ai-detection
- └── database
-```
-
-Team members should work on separate branches and merge completed changes into `main` through Pull Requests.
-
-Before committing changes:
-
-```bash
-git pull
-```
-
-After completing a feature:
-
-```bash
-git add .
-git commit -m "Describe your change"
-git push
-```
+> The exact project structure may change during development.
 
 ---
 
 # ⚙️ Installation
 
-## 1. Clone the repository
+## 1. Clone the Repository
 
 ```bash
-git clone <REPOSITORY_URL>
+git clone <YOUR_GITHUB_REPOSITORY_URL>
+```
+
+Enter the project directory:
+
+```bash
 cd IBVAP
 ```
 
-## 2. Create a virtual environment
+---
 
-### Windows
-
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
-
-### Linux / macOS
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-## 3. Install dependencies
-
-If `requirements.txt` is available:
+## 2. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-The main project dependencies include the Python computer-vision, AI, dashboard, and data-processing packages used by the application.
-
-## 4. Verify project files
-
-Ensure the required model and test video are available:
+Example `requirements.txt`:
 
 ```text
-yolo26n.pt
-cctv.mp4
+opencv-python
+ultralytics
+streamlit
+numpy
+easyocr
 ```
 
-The detection engine expects the YOLO model and CCTV input in the project structure used by the application.
+SQLite is included with standard Python installations.
 
-## 5. Run the application
+---
+
+# ▶️ Running the Application
+
+Start the Streamlit dashboard:
 
 ```bash
 streamlit run app.py
 ```
 
-The exact entry-point filename should match the current repository version.
+The dashboard will open in your web browser.
 
 ---
 
-# 🧪 Prototype Testing
+# 🎯 Project Objectives
 
-A basic demonstration can be performed using:
+IBVAP aims to:
 
-1. Start the Streamlit application.
-2. Open CCTV-01.
-3. Display the CCTV frame.
-4. Select at least three points to create the virtual fence.
-5. Start AI detection.
-6. Allow YOLO to process the CCTV video.
-7. Observe detected objects and tracking.
-8. Check whether objects enter the restricted zone.
-9. Verify the intrusion alert.
-10. Verify the generated snapshot.
-11. Verify the SQLite event.
-12. Verify the CSV log.
-13. Verify the processed CCTV video.
-14. Check the Event Log and Analytics tabs.
+1. Enhance existing CCTV infrastructure using AI.
+2. Automatically detect humans and vehicles.
+3. Allow users to define a virtual intrusion area.
+4. Detect when a human enters the intrusion area.
+5. Detect when a vehicle enters the intrusion area.
+6. Classify such intrusion events as potential threats.
+7. Generate real-time threat alerts.
+8. Store security events for future analysis.
+9. Reduce dependence on expensive dedicated surveillance hardware.
+10. Improve situational awareness and response time.
 
 ---
 
-# 📌 Current Implementation Status
+# 🌙 Night-Time Movement Detection
 
-| Component                      | Status                    |
-| ------------------------------ | ------------------------- |
-| CCTV/video input               | ✅ Implemented             |
-| YOLO object detection          | ✅ Implemented             |
-| Object tracking                | ✅ Implemented             |
-| ByteTrack                      | ✅ Implemented             |
-| Virtual fence                  | ✅ Implemented             |
-| Intrusion detection            | ✅ Implemented             |
-| Intrusion snapshots            | ✅ Implemented             |
-| SQLite event storage           | ✅ Implemented             |
-| CSV logging                    | ✅ Implemented             |
-| Processed video                | ✅ Implemented             |
-| Streamlit dashboard            | ✅ Implemented             |
-| Surveillance view              | ✅ Implemented             |
-| Event log                      | ✅ Implemented             |
-| Analytics                      | ✅ Implemented             |
-| Evidence display               | ✅ Implemented             |
-| Multi-camera architecture      | 🟡 Prototype / expandable |
-| Dedicated REST backend API     | 🔴 Planned                |
-| Real-time CCTV/RTSP deployment | 🔴 Planned                |
-| Advanced identity recognition  | 🔴 Future scope           |
-| Production deployment          | 🔴 Future scope           |
+The system can be extended to monitor movement during night-time or low-light conditions.
 
----
+If a human or vehicle is detected entering a restricted area during night-time, the system can generate a potential threat alert.
 
-# 🚧 Current Development Priorities
-
-The next major stage of IBVAP development is **system integration and backend separation**.
-
-The priority is to move toward:
+Example:
 
 ```text
-CCTV
-  ↓
-AI Detection Engine
-  ↓
-Backend API
-  ↓
-Database
-  ↓
-Frontend Dashboard
+🌙 NIGHT MONITORING
+
+👤 Human detected
+📍 Restricted area entered
+
+⚠️ THREAT ALERT
 ```
-
-The current prototype already demonstrates the detection → event → database → dashboard workflow within the Streamlit application.
-
-The next development stage should make this architecture more modular and scalable.
 
 ---
 
-# 🔮 Future Enhancements
+# 🔢 Automatic Number Plate Recognition
 
-Potential future improvements include:
+IBVAP can use **EasyOCR** along with image-processing techniques for Automatic Number Plate Recognition.
 
-### Real-Time CCTV
+The ANPR module can be used to:
 
-Replace or supplement test video with:
+1. Detect a vehicle.
+2. Identify the number-plate region.
+3. Extract text from the plate.
+4. Store the recognized plate information.
+5. Associate the event with the detected vehicle.
 
-* RTSP camera streams
-* IP cameras
-* Live CCTV feeds
+This feature can be integrated with the intrusion detection system.
 
-### Multiple Cameras
-
-Support multiple simultaneous cameras:
+For example:
 
 ```text
-CAM_01
-CAM_02
-CAM_03
-CAM_04
-...
+🚗 Vehicle detected
+📍 Intrusion area entered
+🔢 Number Plate: XXXXXXXX
+
+⚠️ THREAT: Vehicle Intrusion
 ```
 
-### Central Backend
+---
 
-Introduce a dedicated backend API for:
+# 🔮 Future Scope
 
-* Event creation
-* Event retrieval
-* Camera management
-* User management
-* Database operations
-* Alert management
+Future versions of IBVAP can include:
 
-### Real-Time Alerts
-
-Possible future notification channels:
-
-* Dashboard alerts
-* Email
-* SMS
-* Mobile notifications
-* Control-room alarms
-
-### Advanced Recognition
-
-Future versions could incorporate:
-
-* Face recognition
-* License plate recognition
-* Authorized-person identification
-* Whitelist / blacklist management
-
-### Improved Tracking
-
-Potential improvements include:
-
-* More robust multi-object tracking
-* Re-identification
-* Better duplicate-event handling
-* Intrusion cooldown periods
-* Persistent object tracking
-
-### Deployment
-
-The prototype can eventually be adapted for:
-
-* Dedicated surveillance servers
-* Edge devices
-* GPU-based inference
-* Cloud infrastructure
-* Centralized command centers
+* Advanced ANPR
+* Face detection
+* Authorized face-recognition capabilities
+* Improved multi-object tracking
+* Suspicious activity detection
+* Loitering detection
+* Abandoned vehicle detection
+* Improved night-time detection
+* Multi-camera monitoring
+* Centralized command dashboard
+* Advanced notification systems
+* Edge AI deployment
+* Integration with authorized command and control systems
 
 ---
 
-# ⚠️ Limitations
+# 📈 Advantages
 
-IBVAP is currently a **prototype / proof-of-concept**.
+### 💰 Cost Effective
 
-Important limitations include:
+Uses existing CCTV infrastructure rather than requiring dedicated smart surveillance cameras.
 
-* Performance depends on hardware.
-* Detection accuracy depends on the trained/model configuration and video conditions.
-* Poor lighting, occlusion, camera angle, and image quality can affect detection.
-* A predefined virtual fence is required for intrusion analysis.
-* The current prototype primarily demonstrates video-file based surveillance.
-* Production-scale multi-camera deployment requires further optimization.
-* AI detection should be treated as an assistance mechanism and not as an infallible security decision system.
+### 🔧 Software-Based
 
----
+AI-powered intelligence can be added through software.
 
-# 🔐 Security Considerations
+### 📡 Scalable
 
-A production deployment should additionally address:
+The architecture can be extended to multiple CCTV cameras and locations.
 
-* Authentication
-* Authorization
-* Secure API communication
-* Database access control
-* Secure storage of evidence
-* Encryption
-* Audit logging
-* User roles
-* Secure camera credentials
-* Protection of surveillance footage
+### ⚡ Real-Time
 
-These are important future requirements beyond the current academic prototype.
+The system can analyze video and generate alerts in real time.
+
+### 🚧 Flexible
+
+The user can define the restricted area according to the surveillance environment.
+
+### 🧠 AI-Assisted
+
+Reduces the need for continuous manual observation of every CCTV feed.
 
 ---
 
-# 📚 Project Significance
+# 🌐 Potential Applications
 
-IBVAP demonstrates how AI and computer vision can be applied to surveillance environments where continuous human monitoring is difficult.
+IBVAP can potentially be adapted for monitoring:
 
-The project combines:
+* 🛡️ Border Out Posts (BOPs)
+* 🚧 Check posts
+* 🛣️ Border roads
+* 🏭 Industrial facilities
+* 🏢 Restricted buildings
+* 🔒 High-security zones
+* 🏗️ Critical infrastructure
+* 🎓 Large campuses
+* 🪖 Strategic installations
+
+---
+
+# 📊 Expected Outcome
+
+IBVAP aims to transform conventional CCTV surveillance into an intelligent AI-assisted monitoring system.
 
 ```text
-Artificial Intelligence
-        +
-Computer Vision
-        +
-Object Tracking
-        +
-Geofencing / Virtual Perimeter
-        +
-Database Systems
-        +
-Web-Based Visualization
+Existing CCTV
+      ↓
+AI Video Analysis
+      ↓
+Human / Vehicle Detection
+      ↓
+Draw Intrusion Area
+      ↓
+Check Object Position
+      ↓
+┌────────────────────────────┐
+│ Is Human/Vehicle inside?   │
+└─────────────┬──────────────┘
+              │
+        ┌─────┴─────┐
+        ↓           ↓
+       YES          NO
+        ↓           ↓
+   ⚠️ THREAT     NORMAL
+     ALERT       MONITORING
+        ↓
+   Event Logging
+        ↓
+   Dashboard Alert
 ```
-
-to create an integrated AI-assisted surveillance prototype.
 
 ---
 
-# 🎓 Academic Scope
+# 🔐 Privacy & Security
 
-IBVAP demonstrates concepts from:
+IBVAP is primarily designed as a **security-event detection system**.
+
+The basic intrusion-detection system focuses on:
+
+```text
+👤 Human
+🚗 Vehicle
+📍 Location
+🚧 Intrusion Area
+⚠️ Threat Event
+```
+
+The system does not need to assign individual IDs to humans for basic intrusion detection.
+
+Any future facial-recognition or identity-related functionality should only be implemented with appropriate authorization, privacy safeguards, and compliance with applicable laws and organizational policies.
+
+---
+
+# 👥 Project Information
+
+### Project Name
+
+**IBVAP**
+
+### Full Name
+
+**Intelligent Border Video Analytics Platform**
+
+### Domain
 
 * Artificial Intelligence
 * Machine Learning
 * Computer Vision
-* Object Detection
-* Object Tracking
-* Image Processing
-* Database Management
-* Python Programming
-* Web Application Development
+* Video Analytics
+* Border Surveillance
 * Software Engineering
-* Data Visualization
 
 ---
 
-# 🏁 Final Project Goal
+# 🏆 Project Vision
 
-The long-term goal of IBVAP is to provide an intelligent surveillance pipeline capable of:
-
-```text
-DETECT
-  ↓
-TRACK
-  ↓
-ANALYZE
-  ↓
-IDENTIFY INTRUSION
-  ↓
-CAPTURE EVIDENCE
-  ↓
-STORE EVENT
-  ↓
-ALERT OPERATOR
-  ↓
-DISPLAY & ANALYZE
-```
-
-The system is designed as an **AI-assisted surveillance layer** that helps security personnel monitor restricted areas more efficiently.
+> **Transform existing CCTV infrastructure into an intelligent AI-assisted surveillance network that detects potential human and vehicle intrusions and provides real-time threat alerts.**
 
 ---
 
-## 🛡️ IBVAP
+# 📜 Disclaimer
 
-**Intelligent Border Virtual AI Protection**
+IBVAP is an **academic/prototype project** developed for research, learning, and demonstration purposes.
 
-> AI-Powered Intrusion Surveillance • YOLO Vision • Virtual Perimeter • SQLite Evidence System
+Real-world deployment in border-security or other high-security environments would require appropriate testing, authorization, cybersecurity controls, privacy safeguards, reliability validation, and compliance with applicable laws, regulations, and organizational policies.
 
-**Project Type:** Academic Prototype
-**Domain:** AI / Computer Vision / Border Security / Surveillance
-**Primary Language:** Python
-**Interface:** Streamlit
-**Detection:** YOLO
-**Tracking:** ByteTrack
-**Database:** SQLite
+
